@@ -1,0 +1,103 @@
+from celery import shared_task
+from airpay.backends.razorpay_ import AirRazorpayBackend
+from airpay.models import AirPayTransferLogs, RazorpayOnboardingAddress
+from airpay.utils.onboarding import get_onboarding_details
+from helpers.email.email import Email
+from helpers.fcm import FirebaseMessage
+
+backend = AirRazorpayBackend()
+
+
+@shared_task(
+    name='sync_details_to_razorpay',
+)
+def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
+    onboarding_details = get_onboarding_details(razorpay_route_onboarding_details_id, 'razorpay')
+    try:
+        backend.create_linked_account(onboarding_details)
+        backend.create_stakeholder(onboarding_details)
+        backend.save_bank_account(onboarding_details)
+    except Exception as e:
+        from airley.celery import send_email
+        onboarding_details.status = 'needs_clarification'
+        onboarding_details.route_configs = {
+                'requirements': [
+                    {
+                        'field_reference': "Error due to:",
+                        'reason_code': str(e.args[0])
+                    }
+                ]
+            }
+        onboarding_details.save()
+        send_email.delay(
+            dict(
+                to=onboarding_details.email,
+                subject='Error completing Airley Payment onboarding',
+                body=f"<html><body><p>There was an error completing your onboarding due to {e}."
+                     f" Please update your details or contact support</p></body></html>",
+            )
+        )
+        raise e
+
+
+@shared_task(
+    name='create_transfer'
+)
+def create_transfer(
+        payment_id: str,
+        seller_id: int,
+        razorpay_account_id: str,
+        description: str
+):
+    try:
+        transfer = backend.create_transfer(payment_id, account_id=razorpay_account_id)
+        print(transfer)
+        AirPayTransferLogs.objects.create(
+            seller_id=seller_id,
+            payment_id=payment_id,
+            currency=transfer['currency'],
+            amount=transfer['amount'],
+            transfer_status=transfer['status'] if 'transfer_status' in transfer else None,
+            settlement_status=transfer['status'] if 'settlement_status' in transfer else None,
+            transfer_id=transfer['id'],
+            description=description
+        )
+    except Exception as e:
+        print('Error creating transfer: ', e)
+        raise
+
+
+@shared_task(
+    name='create_address')
+def create_address(pk: int, _address: dict):
+    try:
+        for address in ['individual', 'registered']:
+            RazorpayOnboardingAddress.objects.update_or_create(
+                razorpay_route_onboarding_details=get_onboarding_details(pk, 'razorpay'),
+                type=address, defaults={**_address, 'type': address})
+    except Exception as e:
+        raise e
+
+
+@shared_task(
+    name='notify_seller'
+)
+def notify_seller(message: str, email: str, tokens: [str], user_id: int):
+    try:
+        messaging = FirebaseMessage()
+        messaging.send(
+            title='Important update from Airley',
+            body=message,
+            token_ids=tokens
+        )
+        email = Email(
+            to=email,
+            subject='Important update from Airley',
+            body=f"<html><body><p>{message}</p></body></html>",
+        )
+        email.send()
+        print('Seller notified successfully', message, email)
+
+    except Exception as e:
+        print('Error notifying seller: ', e)
+        raise e

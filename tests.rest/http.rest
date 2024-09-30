@@ -1,0 +1,40 @@
+### LOGIN
+POST {{BASE_URL}}/user/login/
+Content-Type: application/json
+
+{
+    "username": "WFN3KJHmCnZzfytc8VjuIYdqyD42",
+    "password": "JkLHzzL5x398mEJ@"
+}
+
+### Payment Onboarding
+POST {{BASE_URL}}/airpay/onboarding/
+Content-Type: application/json
+Authorization: Bearer {{ACCESS}}
+
+{
+  "customer_facing_business_name": "Test Business",
+  "legal_business_name": "Test Business",
+    "business_type": "individual",
+      "business_category": "financial_services",
+  "email": "me@iamharsh.dev",
+          "sub_business_category": "financial_advisor",
+  "phone_number": "1234567890"
+}
+
+
+### Update Payment Onboarding
+PATCH {{BASE_URL}}/airpay/onboarding/
+Content-Type: application/json
+Authorization: Bearer {{ACCESS}}
+
+{
+  "bank_account_number": "1234567890",
+    "bank_name": "Test Bank",
+  "bank_ifsc": "HDFC0000001",
+  "bank_account_holder_name": "Test User",
+  "business_pan": "ABCDE1234F",
+  "gstin": "GSTIN1234F",
+  "pan": "ABCDE1234F",
+  "status": "active"
+}
