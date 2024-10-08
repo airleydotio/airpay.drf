@@ -1,8 +1,7 @@
 import json
 
-from celery.app import shared_task
-from django.conf import settings
 import razorpay
+from django.conf import settings
 
 
 def get_string_else_default(value, default):

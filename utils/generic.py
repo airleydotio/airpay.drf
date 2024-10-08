@@ -1,12 +1,9 @@
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Model
-from django.apps import apps as django_apps
 
-
-from airpay.models import PaymentGateway, Subscriptions
+from airpay.models import PaymentGateway
 
 
 def get_gateway(gateway) -> PaymentGateway or None:

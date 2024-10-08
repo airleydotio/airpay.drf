@@ -1,9 +1,11 @@
+import django.conf
 from celery import shared_task
 from airpay.backends.razorpay_ import AirRazorpayBackend
 from airpay.models import AirPayTransferLogs, RazorpayOnboardingAddress
 from airpay.utils.onboarding import get_onboarding_details
 from helpers.email.email import Email
-from helpers.fcm import FirebaseMessage
+from .helpers.fcm import FirebaseMessage
+from .helpers.email.tasks import send_email
 
 backend = AirRazorpayBackend()
 
@@ -18,16 +20,15 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
         backend.create_stakeholder(onboarding_details)
         backend.save_bank_account(onboarding_details)
     except Exception as e:
-        from airley.celery import send_email
         onboarding_details.status = 'needs_clarification'
         onboarding_details.route_configs = {
-                'requirements': [
-                    {
-                        'field_reference': "Error due to:",
-                        'reason_code': str(e.args[0])
-                    }
-                ]
-            }
+            'requirements': [
+                {
+                    'field_reference': "Error due to:",
+                    'reason_code': str(e.args[0])
+                }
+            ]
+        }
         onboarding_details.save()
         send_email.delay(
             dict(
@@ -82,11 +83,12 @@ def create_address(pk: int, _address: dict):
 @shared_task(
     name='notify_seller'
 )
-def notify_seller(message: str, email: str, tokens: [str], user_id: int):
+def notify_seller(message: str, email: str, tokens: [str]):
     try:
         messaging = FirebaseMessage()
         messaging.send(
-            title='Important update from Airley',
+            # use django settings to get the title
+            title='Important update from {}'.format(django.conf.settings.APP_NAME),
             body=message,
             token_ids=tokens
         )
