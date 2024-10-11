@@ -1,9 +1,9 @@
 import django.conf
 from celery import shared_task
-from airpay.backends.razorpay_ import AirRazorpayBackend
-from airpay.models import AirPayTransferLogs, RazorpayOnboardingAddress
-from airpay.utils.onboarding import get_onboarding_details
-from helpers.email.email import Email
+from .backends.razorpay_ import AirRazorpayBackend
+from .models import AirPayTransferLogs, RazorpayOnboardingAddress
+from .utils.onboarding import get_onboarding_details
+from .helpers.email.email import Email
 from .helpers.fcm import FirebaseMessage
 from .helpers.email.tasks import send_email
 
