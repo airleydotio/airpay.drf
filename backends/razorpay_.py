@@ -1,7 +1,8 @@
 import json
 
-import razorpay
+from celery.app import shared_task
 from django.conf import settings
+import razorpay
 
 
 def get_string_else_default(value, default):
@@ -36,7 +37,7 @@ class AirRazorpayBackend:
 
             account = self.client.account.create({
                 'email': data.email,
-                'phone': data.phone_number.replace("+91"),
+                'phone': data.phone_number.replace("+91", '').replace(" ", ""),
                 'type': 'route',
                 'reference_id': f'AIRPAY_SELLER_{data.seller.id}',
                 'legal_business_name': data.legal_business_name,
