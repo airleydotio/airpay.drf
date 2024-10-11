@@ -25,12 +25,18 @@ class AirRazorpayBackend:
             operations_address = address.filter(type='individual')
             if not registered_address.exists():
                 raise Exception('Registered address not found')
-            registered_address = registered_address.first().refresh_from_db()
-            operations_address = operations_address.first().refresh_from_db()
+            registered_address = registered_address.first()
+            operations_address = operations_address.first()
+
+            registered_address.refresh_from_db()
+            operations_address.refresh_from_db()
+
+            if not registered_address or not operations_address:
+                raise Exception('Address not found')
 
             account = self.client.account.create({
                 'email': data.email,
-                'phone': data.phone_number,
+                'phone': data.phone_number.replace("+91"),
                 'type': 'route',
                 'reference_id': f'AIRPAY_SELLER_{data.seller.id}',
                 'legal_business_name': data.legal_business_name,
