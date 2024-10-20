@@ -18,7 +18,9 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
     try:
         backend.create_linked_account(onboarding_details)
         backend.create_stakeholder(onboarding_details)
+        backend.request_product_configurations(onboarding_details)
         backend.save_bank_account(onboarding_details)
+       
     except Exception as e:
         onboarding_details.status = 'needs_clarification'
         onboarding_details.route_configs = {

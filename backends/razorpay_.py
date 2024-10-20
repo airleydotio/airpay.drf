@@ -145,6 +145,7 @@ class AirRazorpayBackend:
                                        product_type: str = 'route'):
         try:
             data.refresh_from_db()
+            print(data.seller.razorpay_account_id, 'requesting product configurations')
             product_configs = self.client.product.requestProductConfiguration(data.seller.razorpay_account_id, {
                 'product_name': product_type,
                 'tnc_accepted': True,
@@ -166,29 +167,25 @@ class AirRazorpayBackend:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account is under review. We will notify you once it is activated.',
                         data.email,
-                        tokens,
-                        data.seller.user.id
+                        tokens
                     )
                 elif product_configs['activation_status'] == 'activated':
                     notify_seller.delay(
                         f'Your razorpay {product_type} account has been activated successfully.',
                         data.email,
-                        tokens,
-                        data.seller.user.id
+                        tokens
                     )
                 elif product_configs['activation_status'] == 'suspended':
                     notify_seller.delay(
                         f'Your razorpay {product_type} account has been suspended. Please contact support for more details.',
                         data.email,
-                        tokens,
-                        data.seller.user.id
+                        tokens
                     )
                 elif product_configs['activation_status'] == 'needs_clarification' and data.notified_for != data.status:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account needs clarification. Please contact support for more details.',
                         data.email,
-                        tokens,
-                        data.seller.user.id
+                        tokens
                     )
                 data.notified_for = data.status
             data.save()
@@ -199,7 +196,6 @@ class AirRazorpayBackend:
 
     def save_bank_account(self, data):
         try:
-            self.request_product_configurations(data)
             data.refresh_from_db()
             products = [
                 {'type': 'route', 'id': data.route_configs['id']}
