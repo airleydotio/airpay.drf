@@ -1,6 +1,5 @@
 import json
 
-from celery.app import shared_task
 from django.conf import settings
 import razorpay
 
@@ -145,7 +144,6 @@ class AirRazorpayBackend:
                                        product_type: str = 'route'):
         try:
             data.refresh_from_db()
-            print(data.seller.razorpay_account_id, 'requesting product configurations')
             product_configs = self.client.product.requestProductConfiguration(data.seller.razorpay_account_id, {
                 'product_name': product_type,
                 'tnc_accepted': True,
@@ -211,8 +209,11 @@ class AirRazorpayBackend:
                 self.request_product_configurations(data, product_type=product['type'])
             print('Bank account saved successfully')
         except Exception as e:
-            print('Error saving bank account: ', e)
-            raise e
+            if str(e).__contains__("Merchant activation form has been locked for editing by admin"):
+                self.request_product_configurations(data)
+            else:
+                print('Error saving bank account: ', e)
+                raise e
 
     def create_payment_link(self, amount, currency, **kwargs):
         link = self.client.payment_link.create({
