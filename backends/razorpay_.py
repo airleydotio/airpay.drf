@@ -199,6 +199,7 @@ class AirRazorpayBackend:
 
     def save_bank_account(self, data):
         try:
+            self.request_product_configurations(data)
             data.refresh_from_db()
             products = [
                 {'type': 'route', 'id': data.route_configs['id']}
