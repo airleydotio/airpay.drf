@@ -6,7 +6,7 @@ class FirebaseMessage:
         pass
 
     @staticmethod
-    def send(title, body, token_ids):
+    def send(title, body, token_ids, silent=False):
         """
         Send push notification to specified device tokens.
         """
@@ -14,6 +14,7 @@ class FirebaseMessage:
             data={
                 "title": title,
                 "body": body,
+                'silent': silent
             },
             token=token_id,
         ) for token_id in token_ids]
