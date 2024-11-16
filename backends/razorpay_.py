@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.conf import settings
@@ -231,14 +232,13 @@ class AirRazorpayBackend:
     def get_payment_link(self, link_id):
         return self.client.payment_link.fetch(link_id)
 
-    def create_subscription_link(self, plan_id, total_count, email):
-        print(plan_id, total_count, email)
+    def create_subscription_link(self, plan_id, total_count, email, quantity=1):
         return self.client.subscription.create({
             'plan_id': plan_id,
+            'quantity': quantity,
             'total_count': total_count,
-            'notify_info': {
-                'notify_email': email,
-            }})
+            'start_at': datetime.now()
+        })
 
     def create_order(self, amount, currency):
         order = self.client.order.create(data={
