@@ -1,6 +1,7 @@
 import http
 import json
 
+from django.conf import settings
 import requests
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
@@ -176,9 +177,18 @@ class VerifySubscriptionPayment(CreateAPIView):
         gateway = get_gateway_backend(subscription.gateway.name)
         try:
             gateway.verify_subscription_payment(payment_id, razorpay_subscription_id, razorpay_signature)
-            return redirect(
-                "http://localhost:3000/onboarding"
-            )
+            if settings.ONBOARDING_URL:
+                return redirect(
+                    settings.ONBOARDING_URL
+                )
+            else:
+                return SendResponse(
+                    status_code=http.HTTPStatus.ACCEPTED,
+                    message='Payment verified',
+                    data=None,
+                    error=False,
+                    success=True
+                ).send()
         except requests.exceptions.HTTPError as e:
             return SendResponse(
                 status_code=http.HTTPStatus.BAD_REQUEST,
