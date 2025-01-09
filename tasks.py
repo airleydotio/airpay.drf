@@ -1,7 +1,11 @@
 import django.conf
+from airley.celery import BaseTaskWithRetry
 from celery import shared_task
+from django.contrib.auth import get_user_model
+from airpay.utils.gateway import get_gateway_backend
+from constants.constants import Constants
 from .backends.razorpay_ import AirRazorpayBackend
-from .models import AirPayTransferLogs, RazorpayOnboardingAddress
+from .models import AirPayTransferLogs, RazorpayOnboardingAddress, RazorpayRouteOnboardingDetails
 from .utils.onboarding import get_onboarding_details
 from .helpers.email.email import Email
 from .helpers.fcm import FirebaseMessage
@@ -105,3 +109,22 @@ def notify_seller(message: str, email: str, tokens: [str]):
     except Exception as e:
         print('Error notifying seller: ', e)
         raise e
+
+@shared_task(
+    name='update_kyc_status'
+)
+def update_kyc_status():
+    onboarding_details = RazorpayRouteOnboardingDetails.objects.filter(
+        status__in=['under_review', 'needs_clarification']
+    ).values_list('id', flat=True)
+    for onboarding_detail in onboarding_details:
+        request_product_configurations.delay(onboarding_detail)
+
+@shared_task(
+    name='request_product_configurations',
+    base=BaseTaskWithRetry
+)
+def request_product_configurations(razorpay_route_onboarding_details_id: int):
+    onboarding_details = get_onboarding_details(razorpay_route_onboarding_details_id, 'razorpay')
+    backend = get_gateway_backend('razorpay')
+    backend.request_product_configurations(onboarding_details, notify=False)

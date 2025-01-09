@@ -142,14 +142,13 @@ class AirRazorpayBackend:
         print('Stakeholder created successfully')
 
     def request_product_configurations(self, data,
-                                       product_type: str = 'route'):
+                                       product_type: str = 'route', notify: bool = True):
         try:
             data.refresh_from_db()
             product_configs = self.client.product.requestProductConfiguration(data.seller.razorpay_account_id, {
                 'product_name': product_type,
                 'tnc_accepted': True,
             })
-            print(product_configs['activation_status'])
             if 'payment_gateway' == product_type:
                 data.payment_gateway_configs = product_configs
             elif 'payment_link' == product_type:
@@ -162,7 +161,7 @@ class AirRazorpayBackend:
                 tokens = []
                 for token in data.seller.user.user_notification_tokens.values_list('token', flat=True):
                     tokens.append(token)
-                if product_configs['activation_status'] == 'under_review':
+                if product_configs['activation_status'] == 'under_review' and notify:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account is under review. We will notify you once it is activated.',
                         data.email,
@@ -174,13 +173,13 @@ class AirRazorpayBackend:
                         data.email,
                         tokens
                     )
-                elif product_configs['activation_status'] == 'suspended':
+                elif product_configs['activation_status'] == 'suspended' and notify:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account has been suspended. Please contact support for more details.',
                         data.email,
                         tokens
                     )
-                elif product_configs['activation_status'] == 'needs_clarification' and data.notified_for != data.status:
+                elif product_configs['activation_status'] == 'needs_clarification' and data.notified_for != data.status and notify:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account needs clarification. Please contact support for more details.',
                         data.email,
