@@ -39,9 +39,11 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
         send_email.delay(
             dict(
                 to=onboarding_details.email,
-                subject='Error completing Airley Payment onboarding',
-                body=f"<html><body><p>There was an error completing your onboarding due to {e}."
-                     f" Please update your details or contact support</p></body></html>",
+                subject='Oops! Error completing Airley Payment onboarding',
+                template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_ONBOARDING_ERROR'],
+                dynamic_template_data={
+                    'error': str(e.args[0])
+                }
             )
         )
         raise e
@@ -98,10 +100,16 @@ def notify_seller(message: str, email: str, tokens: [str]):
             body=message,
             token_ids=tokens
         )
+        user = get_user_model().objects.get(email=email)
         email = Email(
             to=email,
             subject='Important update from Airley',
-            body=f"<html><body><p>{message}</p></body></html>",
+            template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_PAYMENTS_NOTIFICATION'],
+            dynamic_template_data={
+                'message': message,
+                'cta_url': f"https://{django.conf.settings.APP_URL}/settings#razorpay",
+                'name': user.first_name,
+            },
         )
         email.send()
         print('Seller notified successfully', message, email)
