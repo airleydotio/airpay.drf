@@ -1,9 +1,15 @@
+from abc import ABC
 from celery import shared_task
+import celery
 
 from airpay.helpers.email.email import Email
 
+class BaseTaskWithRetry(ABC, celery.Task):
+    autoretry_for = (Exception, )
+    retry_kwargs = {'max_retries': 3, 'countdown': 10}
 
-@shared_task()
+
+@shared_task(base=BaseTaskWithRetry)
 def send_email(data: dict):
     print('Sending email')
     try:
@@ -19,3 +25,4 @@ def send_email(data: dict):
     except Exception as e:
         print('Error sending email: ', e)
         raise e
+    

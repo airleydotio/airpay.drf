@@ -1,4 +1,6 @@
+import traceback
 import django.conf
+from airley import settings
 from airley.celery import BaseTaskWithRetry
 from celery import shared_task
 from django.contrib.auth import get_user_model
@@ -24,14 +26,15 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
         backend.create_stakeholder(onboarding_details)
         backend.request_product_configurations(onboarding_details)
         backend.save_bank_account(onboarding_details)
-       
+        
     except Exception as e:
+        traceback.print_exc()
         onboarding_details.status = 'needs_clarification'
         onboarding_details.route_configs = {
             'requirements': [
                 {
                     'field_reference': "Error due to:",
-                    'reason_code': str(e.args[0])
+                    'reason_code': str(e.args[0]),
                 }
             ]
         }
@@ -60,7 +63,6 @@ def create_transfer(
 ):
     try:
         transfer = backend.create_transfer(payment_id, account_id=razorpay_account_id)
-        print(transfer)
         AirPayTransferLogs.objects.create(
             seller_id=seller_id,
             payment_id=payment_id,
@@ -107,8 +109,8 @@ def notify_seller(message: str, email: str, tokens: [str]):
             template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_PAYMENTS_NOTIFICATION'],
             dynamic_template_data={
                 'message': message,
-                'cta_url': f"https://{django.conf.settings.APP_URL}/settings#razorpay",
-                'name': user.first_name,
+                'url': f"https://{settings.APP_URL}/settings#razorpay",
+                'contact.FIRSTNAME': user.first_name,
             },
         )
         email.send()
