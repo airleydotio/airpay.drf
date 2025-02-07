@@ -1,7 +1,6 @@
 import traceback
 import django.conf
 from airley import settings
-from airley.celery import BaseTaskWithRetry
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from airpay.utils.gateway import get_gateway_backend
@@ -12,6 +11,7 @@ from .utils.onboarding import get_onboarding_details
 from .helpers.email.email import Email
 from .helpers.fcm import FirebaseMessage
 from .helpers.email.tasks import send_email
+from airpay.helpers.email.tasks import BaseTaskWithRetry
 
 backend = AirRazorpayBackend()
 
@@ -105,11 +105,11 @@ def notify_seller(message: str, email: str, tokens: [str]):
         user = get_user_model().objects.get(email=email)
         email = Email(
             to=email,
-            subject='Important update from Airley',
+            subject='Update on Your Airley Payment Provider Setup',
             template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_PAYMENTS_NOTIFICATION'],
             dynamic_template_data={
-                'message': message,
-                'url': f"https://{settings.APP_URL}/settings#razorpay",
+                'info': message,
+                "more_info": 'We recommend you to check the status of your payment provider setup by clicking the button below.',
                 'contact.FIRSTNAME': user.first_name,
             },
         )

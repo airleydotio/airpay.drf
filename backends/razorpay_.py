@@ -168,11 +168,14 @@ class AirRazorpayBackend:
                         tokens
                     )
                 elif product_configs['activation_status'] == 'activated':
-                    notify_seller.delay(
-                        f'Your razorpay {product_type} account has been activated successfully.',
-                        data.email,
-                        tokens
-                    )
+                    send_email.delay(dict(
+                        to=data.email,
+                        subject=f'Payment Setup Complete – You’re Ready to Set Cohort Pricing!',
+                        template_id=Constants.EMAIL_TEMPLATES['PAYMENT_SETUP_SUCCESS'],
+                        dynamic_template_data={
+                            'contact.FIRSTNAME': data.seller.user.first_name,
+                        }
+                    ))
                 elif product_configs['activation_status'] == 'suspended' and notify:
                     notify_seller.delay(
                         f'Your razorpay {product_type} account has been suspended. Please contact support for more details.',
