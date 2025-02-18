@@ -1,5 +1,6 @@
 import datetime
 import json
+from time import time
 
 from django.conf import settings
 import razorpay
@@ -22,13 +23,16 @@ class AirRazorpayBackend:
 
     def create_linked_account(self, data):
         try:
+            data.refresh_from_db()
             if data.seller.razorpay_account_id:
                 return print('Linked account already created')
             address = data.addresses.all()
             registered_address = address.filter(type='registered')
             operations_address = address.filter(type='individual')
             if not registered_address.exists():
-                raise Exception('Registered address not found')
+                # wait for 10 seconds and try again
+                time.sleep(5)
+                return self.create_linked_account(data)
             registered_address = registered_address.first()
             operations_address = operations_address.first()
 
