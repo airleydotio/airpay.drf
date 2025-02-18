@@ -2,7 +2,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import models
-
+from encrypted_model_fields.fields import EncryptedCharField
 from airpay.razorpay_constants import BUSINESS_TYPE, BUSINESS_CATEGORY, BUSINESS_SUB_CATEGORY
 from airpay.utils.gateway import get_gateway_backend
 
@@ -99,13 +99,13 @@ class RazorpayRouteOnboardingDetails(models.Model):
     sub_business_category = models.CharField(max_length=255, choices=[(x, x) for x in
                                                                       [x for key in BUSINESS_SUB_CATEGORY.values() for x
                                                                        in key]], null=True, blank=True)
-    pan = models.CharField(max_length=255, blank=True, null=True)
-    gstin = models.CharField(max_length=255, blank=True, null=True)
-    bank_account_number = models.CharField(max_length=255, blank=True, null=True)
-    bank_name = models.CharField(max_length=255, blank=True, null=True)
-    bank_ifsc = models.CharField(max_length=255, blank=True, null=True)
-    bank_account_holder_name = models.CharField(max_length=255, blank=True, null=True)
-    business_pan = models.CharField(max_length=255, blank=True, null=True)
+    pan = EncryptedCharField(max_length=255, blank=True, null=True)
+    gstin = EncryptedCharField(max_length=255, blank=True, null=True)
+    bank_account_number = EncryptedCharField(max_length=255, blank=True, null=True)
+    bank_name = EncryptedCharField(max_length=255, blank=True, null=True)
+    bank_ifsc = EncryptedCharField(max_length=255, blank=True, null=True)
+    bank_account_holder_name = EncryptedCharField(max_length=255, blank=True, null=True)
+    business_pan = EncryptedCharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=255, default='pending')
     payment_gateway_configs = models.JSONField(blank=True, null=True)
     payment_link_configs = models.JSONField(blank=True, null=True)
