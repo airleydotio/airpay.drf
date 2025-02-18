@@ -45,7 +45,8 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
                 subject='Oops! Error completing Airley Payment onboarding',
                 template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_ONBOARDING_ERROR'],
                 dynamic_template_data={
-                    'error': str(e.args[0])
+                    'error': str(e.args[0]),
+                    'contact.FIRSTNAME': onboarding_details.legal_business_name
                 }
             )
         )
