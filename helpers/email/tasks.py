@@ -13,7 +13,6 @@ class BaseTaskWithRetry(ABC, celery.Task):
 @shared_task(
     bind=True,
     base=BaseTaskWithRetry,
-    soft_time_limit=1  # 1 second timeout for email sending
 )
 def send_email(self, data: dict):
     """Send an email using the Email helper class.
@@ -36,5 +35,4 @@ def send_email(self, data: dict):
         )
         return email.send()
     except Exception as exc:
-        # Let BaseTaskWithRetry handle retries with exponential backoff
         raise exc
