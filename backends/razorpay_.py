@@ -1,7 +1,6 @@
 import datetime
 import json
-from time import time
-
+import time
 from django.conf import settings
 import razorpay
 
@@ -31,7 +30,7 @@ class AirRazorpayBackend:
             operations_address = address.filter(type='individual')
             if not registered_address.exists():
                 # wait for 10 seconds and try again
-                time.sleep(5)
+                time.sleep(10)
                 return self.create_linked_account(data)
             registered_address = registered_address.first()
             operations_address = operations_address.first()
