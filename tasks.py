@@ -8,13 +8,11 @@ from constants.constants import Constants
 from .backends.razorpay_ import AirRazorpayBackend
 from .models import AirPayTransferLogs, RazorpayOnboardingAddress, RazorpayRouteOnboardingDetails
 from .utils.onboarding import get_onboarding_details
-from .helpers.email.email import Email
 from .helpers.fcm import FirebaseMessage
-from .helpers.email.tasks import send_email
+from airpay.helpers.email.tasks import send_email
 from airpay.helpers.email.tasks import BaseTaskWithRetry
 
 backend = AirRazorpayBackend()
-
 
 @shared_task(
     name='sync_details_to_razorpay',
@@ -40,7 +38,7 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
         }
         onboarding_details.save()
         send_email.delay(
-            dict(
+            data=dict(
                 to=onboarding_details.email,
                 subject='Oops! Error completing Airley Payment onboarding',
                 template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_ONBOARDING_ERROR'],
@@ -94,7 +92,7 @@ def create_address(pk: int, _address: dict):
 @shared_task(
     name='notify_seller'
 )
-def notify_seller(message: str, email: str, tokens: [str]):
+def notify_seller(message: str, email: str, tokens: list[str]): # type: ignore
     try:
         messaging = FirebaseMessage()
         messaging.send(
@@ -104,17 +102,18 @@ def notify_seller(message: str, email: str, tokens: [str]):
             token_ids=tokens
         )
         user = get_user_model().objects.get(email=email)
-        email = Email(
-            to=email,
-            subject='Update on Your Airley Payment Provider Setup',
+        send_email.delay(
+            data=dict(  
+                to=email,
+                subject='Update on Your Airley Payment Provider Setup',
             template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_PAYMENTS_NOTIFICATION'],
             dynamic_template_data={
                 'info': message,
                 "more_info": 'We recommend you to check the status of your payment provider setup by clicking the button below.',
                 'contact.FIRSTNAME': user.first_name,
-            },
+                },
+            )
         )
-        email.send()
         print('Seller notified successfully', message, email)
 
     except Exception as e:

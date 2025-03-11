@@ -41,14 +41,15 @@ class AirRazorpayBackend:
             if not registered_address or not operations_address:
                 raise Exception('Address not found')
             
-            print("data", data.__dict__)
-            print("PAN", data.pan if data.pan is not None else data.business_pan)
-
-            account = self.client.account.create({
+            # create a unique reference id
+            def time_based_reference_id():
+                return f'AIRPAY_SELLER_{data.seller.id}_{int(time.time())}'
+            
+            request_body_ = {
                 'email': data.email,
                 'phone': data.phone_number.replace("+91", '').replace(" ", ""),
                 'type': 'route',
-                'reference_id': f'AIRPAY_SELLER_{data.seller.id}',
+                'reference_id': time_based_reference_id(),
                 'legal_business_name': data.legal_business_name,
                 'customer_facing_business_name': data.customer_facing_business_name,
                 'business_type': data.business_type,
@@ -90,7 +91,11 @@ class AirRazorpayBackend:
                         'phone': data.phone_number
                     },
                 },
-            })
+            }
+
+            print("request_body_", request_body_)
+
+            account = self.client.account.create(request_body_)
             data.seller.razorpay_account_id = account['id']
             data.razorpay_user_id = account['id']
             data.seller.save()
