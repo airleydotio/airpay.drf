@@ -43,7 +43,7 @@ class AirRazorpayBackend:
             
             # create a unique reference id
             def time_based_reference_id():
-                return f'AIRPAY_SELLER_{data.seller.id}_{int(time.time())}'
+                return f'AIRPAY_SELLER_{data.seller.id}_{int(time.time())}'[:19]
             
             request_body_ = {
                 'email': data.email,
@@ -92,8 +92,6 @@ class AirRazorpayBackend:
                     },
                 },
             }
-
-            print("request_body_", request_body_)
 
             account = self.client.account.create(request_body_)
             data.seller.razorpay_account_id = account['id']
