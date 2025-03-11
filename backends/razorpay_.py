@@ -30,7 +30,7 @@ class AirRazorpayBackend:
             operations_address = address.filter(type='individual')
             if not registered_address.exists():
                 # wait for 10 seconds and try again
-                time.sleep(10)
+                time.sleep(5)
                 return self.create_linked_account(data)
             registered_address = registered_address.first()
             operations_address = operations_address.first()
@@ -40,6 +40,9 @@ class AirRazorpayBackend:
 
             if not registered_address or not operations_address:
                 raise Exception('Address not found')
+            
+            print("data", data.__dict__)
+            print("PAN", data.pan if data.pan is not None else data.business_pan)
 
             account = self.client.account.create({
                 'email': data.email,
