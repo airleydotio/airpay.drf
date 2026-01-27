@@ -202,10 +202,11 @@ class VerifySubscriptionPayment(CreateAPIView):
 @csrf_exempt
 @require_GET
 def get_razorpay_kyc_form_requirements(request):
+    """
+    View to get the KYC form requirements for the Razorpay onboarding.
+    """
     business_category = request.GET.get('business_category', None)
     business_type = request.GET.get('business_type', None)
-
-    print(business_category, business_type)
 
     return HttpResponse(
         status=200,
@@ -227,10 +228,14 @@ def get_razorpay_kyc_form_requirements(request):
 @csrf_exempt
 @require_POST
 def handle_razorpay_webhook(request):
+    """
+    View to handle the Razorpay webhook.
+    """
     try:
         signature = request.headers['x-razorpay-signature']
         get_gateway_backend('razorpay').process_webhook(request.body, signature)
         return HttpResponse(status=200)
     except Exception as e:
-        print(e)
+        # Log error to the console and propagate the exception
+        print('Error handling Razorpay webhook: ', e)
         return HttpResponse(status=400)

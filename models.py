@@ -17,7 +17,6 @@ class PaymentGateway(models.Model):
     def __str__(self):
         return self.name
 
-
 class AirSeller(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     needs_route = models.BooleanField(default=True)
