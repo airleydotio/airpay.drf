@@ -5,27 +5,27 @@ from django.db import models
 from encrypted_model_fields.fields import EncryptedCharField
 from airpay.razorpay_constants import BUSINESS_TYPE, BUSINESS_CATEGORY, BUSINESS_SUB_CATEGORY
 from airpay.utils.gateway import get_gateway_backend
+from airpay.utils.generic import get_base_model
 
-class PaymentGateway(models.Model):
+# Get the base model from settings
+BaseModel = get_base_model()
+
+class PaymentGateway(BaseModel):
     name = models.CharField(max_length=255, choices=[
         ('stripe', 'Stripe'),
         ('razorpay', 'Razorpay'), ], default='razorpay')
     is_active = models.BooleanField(default=False)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
 
-class AirSeller(models.Model):
+class AirSeller(BaseModel):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     needs_route = models.BooleanField(default=True)
     needs_stripe = models.BooleanField(default=False)
     is_super_admin = models.BooleanField(default=False)
     razorpay_account_id = models.CharField(max_length=255, blank=True, null=True)
     stakeholder_id = models.CharField(max_length=255, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.user.name or 'No Name' + " - " + self.razorpay_account_id or 'No Account ID'
@@ -34,7 +34,7 @@ class AirSeller(models.Model):
         return self.razorpay_account_id and self.stakeholder_id and self.onboardings.filter(status='activated').exists()
 
 
-class AirPayTransferLogs(models.Model):
+class AirPayTransferLogs(BaseModel):
     seller = models.ForeignKey(AirSeller, on_delete=models.CASCADE)
     amount = models.FloatField()
     currency = models.CharField(max_length=255)
@@ -45,28 +45,24 @@ class AirPayTransferLogs(models.Model):
     transfer_id = models.CharField(max_length=255, null=True, blank=True)
     transfer_status = models.CharField(max_length=255, default='pending')
     settlement_status = models.CharField(max_length=255, default='pending')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.seller.user.name} - {self.amount} - {self.status}"
 
 
-class AirPlanFeatures(models.Model):
+class AirPlanFeatures(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField(
         blank=True, null=True
     )
     feature_type = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
 
 
-class AirPlan(models.Model):
+class AirPlan(BaseModel):
     name = models.CharField(max_length=255)
     price = models.FloatField()
     description = models.TextField()
@@ -75,14 +71,12 @@ class AirPlan(models.Model):
     plan_id = models.CharField(max_length=255)
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
     features = models.ManyToManyField(AirPlanFeatures, related_name='features')
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
 
 
-class RazorpayRouteOnboardingDetails(models.Model):
+class RazorpayRouteOnboardingDetails(BaseModel):
     seller = models.ForeignKey(AirSeller, on_delete=models.CASCADE, related_name='onboardings')
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE, related_name='onboardings')
     razorpay_user_id = models.CharField(max_length=255, blank=True, null=True)
@@ -108,9 +102,7 @@ class RazorpayRouteOnboardingDetails(models.Model):
     payment_gateway_configs = models.JSONField(blank=True, null=True)
     payment_link_configs = models.JSONField(blank=True, null=True)
     route_configs = models.JSONField(blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True)
     notified_for = models.CharField(default=None, null=True, blank=True, max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.seller.user.name} - {self.razorpay_user_id}"
@@ -136,7 +128,7 @@ class RazorpayRouteOnboardingDetails(models.Model):
             return False
 
 
-class RazorpayOnboardingAddress(models.Model):
+class RazorpayOnboardingAddress(BaseModel):
     razorpay_route_onboarding_details = models.ForeignKey(RazorpayRouteOnboardingDetails, on_delete=models.CASCADE,
                                                           related_name='addresses')
     street1 = models.TextField(
@@ -149,14 +141,12 @@ class RazorpayOnboardingAddress(models.Model):
     state = models.CharField(max_length=255)
     country = models.CharField(max_length=255)
     postal_code = models.CharField(max_length=255)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.razorpay_route_onboarding_details.bank_account_holder_name} - {self.city}"
 
 
-class Subscriptions(models.Model):
+class Subscriptions(BaseModel):
     subscription_id = models.CharField(max_length=255, null=True, blank=True)
     plan = models.ForeignKey(AirPlan, on_delete=models.CASCADE)
     seller = models.ForeignKey(AirSeller, on_delete=models.CASCADE)
@@ -166,8 +156,6 @@ class Subscriptions(models.Model):
     order_id = models.CharField(max_length=255, null=True, blank=True)
     customer_id = models.CharField(max_length=255, null=True, blank=True)
     buyer = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='subscriptions')
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
     payment_link = models.CharField(max_length=255, blank=True, null=True)
     payment_link_id = models.CharField(max_length=255, blank=True, null=True)
 

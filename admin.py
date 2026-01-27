@@ -3,12 +3,12 @@ from unfold.admin import ModelAdmin
 
 from airpay.models import PaymentGateway, Subscriptions, RazorpayRouteOnboardingDetails, AirPlan, AirPlanFeatures, \
     AirSeller, AirPayTransferLogs, RazorpayOnboardingAddress
-
+from airpay.utils.generic import get_create_date_field, get_update_date_field
 
 # Register your models here.
 @admin.register(PaymentGateway)
 class PaymentGatewayAdmin(ModelAdmin):
-    list_display = ['name', 'is_active', 'updated_at', 'created_at']
+    list_display = ['name', 'is_active', get_create_date_field(), get_update_date_field()]
 
 
 @admin.register(AirSeller)
@@ -29,11 +29,12 @@ class AirPlanAdmin(ModelAdmin):
 @admin.register(RazorpayRouteOnboardingDetails)
 class RazorpayRouteOnboardingDetailsAdmin(ModelAdmin):
     list_display = ['seller', 'gateway', 'razorpay_user_id', 'phone_number', 'legal_business_name']
+    ordering = ['-' + get_create_date_field()]
 
 
 @admin.register(Subscriptions)
 class SubscriptionsAdmin(ModelAdmin):
-    list_display = ['seller', 'plan', 'status', 'created_at', 'updated_at']
+    list_display = ['seller', 'plan', 'status', get_create_date_field(), get_update_date_field()]
 
 
 @admin.register(RazorpayOnboardingAddress)
@@ -44,4 +45,5 @@ class RazorpayOnboardingAddressAdmin(ModelAdmin):
 
 @admin.register(AirPayTransferLogs)
 class AirPayTransferLogsAdmin(ModelAdmin):
-    list_display = ['seller', 'amount', 'settlement_status', 'created_at', 'updated_at']
+    list_display = ['seller', 'amount', 'settlement_status', get_create_date_field(), get_update_date_field()]
+    ordering = ['-' + get_create_date_field()]
