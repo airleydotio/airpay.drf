@@ -7,7 +7,6 @@ import razorpay
 from airpay.helpers.email.tasks import send_email
 from constants.constants import Constants
 
-
 def get_string_else_default(value, default):
     return value if value is not None else default
 

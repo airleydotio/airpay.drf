@@ -6,7 +6,6 @@ from encrypted_model_fields.fields import EncryptedCharField
 from airpay.razorpay_constants import BUSINESS_TYPE, BUSINESS_CATEGORY, BUSINESS_SUB_CATEGORY
 from airpay.utils.gateway import get_gateway_backend
 
-
 class PaymentGateway(models.Model):
     name = models.CharField(max_length=255, choices=[
         ('stripe', 'Stripe'),

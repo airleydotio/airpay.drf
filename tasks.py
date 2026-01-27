@@ -1,6 +1,5 @@
 import traceback
 import django.conf
-from airley import settings
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from airpay.utils.gateway import get_gateway_backend
