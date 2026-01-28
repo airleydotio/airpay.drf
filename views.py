@@ -59,7 +59,6 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
             request.data['gateway'] = get_gateway('razorpay').id
             return super().post(request, *args, **kwargs)
         except Exception as e:
-            print('Error creating onboarding details: ', e)
             return SendResponse(
                 status_code=http.HTTPStatus.BAD_REQUEST,
                 message=str(e),
@@ -67,25 +66,37 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
                 error=True,
                 success=False
             ).send()
+    
+    @staticmethod
+    def has_address_fields(request):
+        """
+        Check if the request data has address fields
+        """
+        return any(
+            field in request.data and request.data.get(field)
+            for field in ['street1', 'street2', 'city', 'state', 'country', 'postal_code']
+        )
 
     def patch(self, request, *args, **kwargs):
         try:
             object_ = self.get_object()
-            self.check_keys(only_not_allowed=True)
+            self.check_keys()
             patched = super().patch(request, *args, **kwargs)
-            from .tasks import create_address
-            create_address.apply_async(
-                kwargs={
-                    'pk': object_.id,
-                    '_address': pickKeysFromDict(request.data, ['street1', 'street2', 'city', 'state',
-                                                                'country', 'postal_code'])
-                }
-            )
+            if self.has_address_fields(request):
+                from .tasks import create_address
+                create_address.apply_async(
+                    kwargs={
+                        'pk': object_.id,
+                        '_address': pickKeysFromDict(request.data, ['street1', 'street2', 'city', 'state',
+                                                                    'country', 'postal_code'])
+                    }
+                )
 
             if request.data.get('finalize') is True:
                 object_.complete_onboarding()
             return patched
         except Exception as e:
+            print('Error patching onboarding details: ', e)
             return SendResponse(
                 status_code=http.HTTPStatus.BAD_REQUEST,
                 message=str(e),
