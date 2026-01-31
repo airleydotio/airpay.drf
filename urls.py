@@ -1,7 +1,7 @@
 from django.urls import path
 
-from airpay.views import CreateSubscriptions, VerifySubscriptionPayment, AirRazorPayOnboarding, OpenPaymentGateway, \
-    handle_razorpay_webhook, get_razorpay_kyc_form_requirements
+from airpay.views import CreateSubscriptions, GetSubscription, ListAirPlans, VerifySubscriptionPayment, AirRazorPayOnboarding, OpenPaymentGateway, \
+        handle_razorpay_webhook, get_razorpay_kyc_form_requirements
 
 app_name = "airpay"
 
@@ -12,9 +12,12 @@ urlpatterns = [
 
     # Onboarding URLs
     path('onboarding/', AirRazorPayOnboarding.as_view(), name='onboarding'),
+    
+    path('plans/', ListAirPlans.as_view(), name='plans'),
 
     # Subscription URLs
     path('subscribe/', CreateSubscriptions.as_view(), name='subscribe'),
+    path('subscription/', GetSubscription.as_view(), name='subscription'),
     path('payment-success/', VerifySubscriptionPayment.as_view(), name='payment_success'),
     path('kyc-form/', get_razorpay_kyc_form_requirements, name='kyc-form')
 ]

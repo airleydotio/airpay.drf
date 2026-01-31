@@ -7,22 +7,23 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
-from rest_framework import generics
+from rest_framework import generics, serializers
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from airpay.models import AirSeller, Subscriptions
+from airpay.models import AirSeller, Subscriptions, AirPlan
 from airpay.razorpay_constants import BUSINESS_TYPE, BUSINESS_CATEGORY, BUSINESS_SUB_CATEGORY, KYC_DOCUMENTS
-from airpay.serializers import SubscriptionsSerializer, RazorpayRouteOnboardingDetailsSerializer
+from airpay.serializers import AirPlanSerializer, SubscriptionsSerializer, RazorpayRouteOnboardingDetailsSerializer
 from airpay.utils.gateway import get_gateway_backend
 from airpay.utils.generic import get_gateway
 from api_views.generic import CreateUpdateAPIView, ListAPIView
 from .helpers.generic import pickKeysFromDict
 from .helpers.respones.response import SendResponse
 
-
 class OpenPaymentGateway(generics.ListAPIView):
+    """Renders payment page; serializer_class is for schema generation only."""
     permission_classes = [AllowAny]
+    serializer_class = serializers.Serializer
 
     def get(self, request, *args, **kwargs):
         return render(request, 'payment.html', {
@@ -106,6 +107,38 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
             ).send()
 
 
+class ListAirPlans(ListAPIView):
+    serializer_class = AirPlanSerializer
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        plans = AirPlan.objects.filter(is_active=True)
+        return SendResponse(
+            status_code=http.HTTPStatus.OK,
+            message='Plans fetched successfully',
+            data=self.serializer_class(plans, many=True).data,
+            error=False,
+            success=True
+        ).send()
+    
+    
+class GetSubscription(ListAPIView):
+    serializer_class = SubscriptionsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.serializer_class.Meta.model.objects.filter(buyer=self.request.user)
+
+    def get(self, request, *args, **kwargs):
+        subscriptions = self.get_queryset()
+        return SendResponse(
+            status_code=http.HTTPStatus.OK,
+            message='Subscription fetched successfully',
+            data=self.serializer_class(subscriptions, many=True).data,
+            error=False,
+            success=True
+        ).send()
+
 # Create your views here.
 class CreateSubscriptions(ListAPIView):
     serializer_class = SubscriptionsSerializer
@@ -136,8 +169,14 @@ class CreateSubscriptions(ListAPIView):
                                                                         gateway=get_gateway(gateway), buyer_id=buyer)
 
             if not created and subscription.status == 'cancelled':
-                raise Exception('Subscription already exists')
-            elif subscription.status == 'pending' and not subscription.order_id and not subscription.subscription_id:
+                # update the existing cancelled subscription status to 'pending'
+                subscription.status = 'pending'
+                subscription.order_id = None
+                subscription.subscription_id = None
+                subscription.payment_link = None
+                subscription.payment_link_id = None
+                subscription.save()
+            if subscription.status == 'pending' and not subscription.order_id and not subscription.subscription_id:
                 subscription.create_order()
                 subscription.create_link()
                 subscription.refresh_from_db()
@@ -172,7 +211,6 @@ class VerifySubscriptionPayment(CreateAPIView):
     serializer_class = SubscriptionsSerializer
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
         payment_id = request.data.get('razorpay_payment_id')
         razorpay_subscription_id = request.data.get('razorpay_subscription_id')
         razorpay_signature = request.data.get('razorpay_signature')

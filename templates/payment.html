@@ -2,21 +2,20 @@
     Pay with Razorpay
 </button>
 <script>
-    console.log('loaded',);
-    console.log(`http://localhost:8000/api/airpay/subscribe/?seller_id={{seller_id}}&plan_id={{plan_id}}&gateway={{gateway}}&buyer={{buyer}}`);
-
     function handleWebsocket(subscription_id = 'sub_OT3S29Vim5KFTO') {
-        let ws = new WebSocket(`ws://localhost:8000/ws/airpay/${subscription_id}`);
+
+        const isHTTP = window.location.protocol === 'http:';
+
+        let ws = new WebSocket(`${isHTTP ? 'ws://' : 'wss://'}${window.location.origin}/ws/airpay/${subscription_id}`);
         ws.onopen = function () {
             console.log('connected');
             ws.send('Hello Server!');
         }
         ws.onmessage = function (event) {
-            console.log(event.data);
             let data = JSON.parse(event.data);
             if (data.status === 'active') {
                 alert('Payment Successful');
-                window.open('http://localhost:3000/home', '_self')
+                window.open("{{ return_url }}", "_self");
             } else {
                 alert('Payment Failed');
             }
@@ -28,9 +27,8 @@
 
     handleWebsocket()
     function handlePayment() {
-        console.log('handling payment');
         // make an api request to server to create order
-        fetch(`http://localhost:8000/api/airpay/subscribe/?seller_id={{seller_id}}&plan_id={{plan_id}}&gateway={{gateway}}&buyer={{buyer}}`, {
+        fetch(`${window.location.origin}/api/airpay/subscribe/?seller_id={{seller_id}}&plan_id={{plan_id}}&gateway={{gateway}}&buyer={{buyer}}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -45,6 +43,4 @@
             alert('Error:', error);
         });
     }
-
-
 </script>

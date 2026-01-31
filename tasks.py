@@ -3,6 +3,7 @@ import django.conf
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from airpay.utils.gateway import get_gateway_backend
+from airpay.utils.generic import get_app_name
 from constants.constants import Constants
 from .backends.razorpay_ import AirRazorpayBackend
 from .models import AirPayTransferLogs, RazorpayOnboardingAddress, RazorpayRouteOnboardingDetails
@@ -44,10 +45,15 @@ def sync_details_to_razorpay(razorpay_route_onboarding_details_id: int):
         }
         onboarding_details.save()
         # Send an error notification email to the user
+        notify_seller.delay(
+            message=f'Error completing {get_app_name()} Payment onboarding: {str(e.args[0])}',
+            email=onboarding_details.email,
+            tokens=[token for token in onboarding_details.seller.user.user_notification_tokens.values_list('token', flat=True)]
+        )
         send_email.delay(
             data=dict(
                 to=onboarding_details.email,
-                subject='Oops! Error completing Airley Payment onboarding',
+                subject=f'Oops! Error completing {get_app_name()} Payment onboarding',
                 template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_ONBOARDING_ERROR'],
                 dynamic_template_data={
                     'error': str(e.args[0]),
@@ -109,13 +115,13 @@ def create_address(pk: int, _address: dict):
 )
 def notify_seller(message: str, email: str, tokens: list[str]): # type: ignore
     """
-    Task to notify seller by FCM push notification and email about updates on their Airley payment setup.
+    Task to notify seller by FCM push notification and email about updates on their {get_app_name()} payment setup.
     """
     try:
         messaging = FirebaseMessage()
         messaging.send(
             # Compose notification title from Django settings
-            title='Important update from {}'.format(django.conf.settings.APP_NAME),
+            title=f'Important update from {get_app_name()}',
             body=message,
             token_ids=tokens
         )
@@ -123,7 +129,7 @@ def notify_seller(message: str, email: str, tokens: list[str]): # type: ignore
         send_email.delay(
             data=dict(  
                 to=email,
-                subject='Update on Your Airley Payment Provider Setup',
+                subject=f'Update on Your {get_app_name()} Payment Provider Setup',
                 template_id=Constants.EMAIL_TEMPLATES['RAZORPAY_PAYMENTS_NOTIFICATION'],
                 dynamic_template_data={
                     'info': message,

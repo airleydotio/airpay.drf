@@ -152,7 +152,7 @@ class Subscriptions(BaseModel):
     seller = models.ForeignKey(AirSeller, on_delete=models.CASCADE)
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
     status = models.CharField(max_length=255, default='pending')
-
+    billing_cycle = models.CharField(max_length=255, choices=[('monthly', 'Monthly'), ('yearly', 'Yearly')], default='monthly')
     order_id = models.CharField(max_length=255, null=True, blank=True)
     customer_id = models.CharField(max_length=255, null=True, blank=True)
     buyer = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='subscriptions')
@@ -172,7 +172,11 @@ class Subscriptions(BaseModel):
 
     def create_link(self):
         gateway = get_gateway_backend(self.gateway.name)
-        subscription = gateway.create_subscription_link(self.plan.plan_id, 12 * 30, self.buyer.email)
+        if self.billing_cycle == 'yearly':
+            total_count = 1
+        else:
+            total_count = 12
+        subscription = gateway.create_subscription_link(self.plan.plan_id, total_count, self.buyer.email, self.billing_cycle)
         self.payment_link = subscription['short_url']
         self.payment_link_id = subscription['id']
         self.subscription_id = subscription['id']

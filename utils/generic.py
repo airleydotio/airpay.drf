@@ -90,3 +90,10 @@ def get_update_date_field() -> str:
     Defaults to 'update_date' if not specified.
     """
     return getattr(settings, "AIRPAY", {}).get("UPDATE_DATE_FIELD", "update_date")
+
+def get_app_name() -> str:
+    """
+    Returns the name of the app from settings.py.
+    Defaults to 'airpay' if not specified.
+    """
+    return getattr(settings, "AIRPAY", {}).get("APP_NAME", "Airpay")

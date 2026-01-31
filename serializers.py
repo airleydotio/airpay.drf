@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from airpay.models import AirSeller, Subscriptions, RazorpayRouteOnboardingDetails, RazorpayOnboardingAddress
-
+from airpay.models import AirPlan, AirPlanFeatures
 
 class AirSellerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,11 +9,22 @@ class AirSellerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class AirPlanFeaturesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AirPlanFeatures
+        fields = '__all__'
+
+class AirPlanSerializer(serializers.ModelSerializer):
+    features = AirPlanFeaturesSerializer(many=True, read_only=True)
+    class Meta:
+        model = AirPlan
+        fields = '__all__'
+
 class SubscriptionsSerializer(serializers.ModelSerializer):
+    plan = AirPlanSerializer(read_only=True)
     class Meta:
         model = Subscriptions
         fields = '__all__'
-
 
 class OnboardingAddressSerializer(serializers.ModelSerializer):
     class Meta:
