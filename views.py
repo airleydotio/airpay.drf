@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from rest_framework import generics, serializers
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from airpay.models import AirSeller, Subscriptions, AirPlan
@@ -166,7 +166,7 @@ class CreateSubscriptions(ListAPIView):
                 raise Exception('Invalid request')
             AirSeller.objects.get(id=seller_id)
             subscription, created = Subscriptions.objects.get_or_create(seller_id=seller_id, plan_id=plan_id,
-                                                                        gateway=get_gateway(gateway), buyer_id=buyer)
+                                                                        gateway=get_gateway(gateway), buyer_id=buyer, is_deleted=False)
 
             if not created and subscription.status == 'cancelled':
                 # update the existing cancelled subscription status to 'pending'
@@ -205,6 +205,29 @@ class CreateSubscriptions(ListAPIView):
                 success=False
             ).send()
 
+class CancelSubscription(UpdateAPIView):
+    serializer_class = SubscriptionsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        subscription = Subscriptions.objects.get(id=request.query_params.get('subscription_id'))
+        try:
+            subscription.cancel()
+            return SendResponse(
+                status_code=http.HTTPStatus.OK,
+                message='Subscription cancelled',
+                data=None,
+                error=False,
+                success=True
+            ).send()
+        except Exception as e:
+            return SendResponse(
+                status_code=http.HTTPStatus.BAD_REQUEST,
+                message='Error cancelling subscription',
+                data=None,
+                error=True,
+                success=False
+            ).send()
 
 class VerifySubscriptionPayment(CreateAPIView):
     permission_classes = [IsAuthenticated]

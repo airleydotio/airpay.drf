@@ -69,6 +69,7 @@ class AirPlan(BaseModel):
     currency = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
     plan_id = models.CharField(max_length=255)
+    billing_cycle = models.CharField(max_length=255, choices=[('monthly', 'Monthly'), ('yearly', 'Yearly')], default='monthly')
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
     features = models.ManyToManyField(AirPlanFeatures, related_name='features')
 
@@ -172,13 +173,22 @@ class Subscriptions(BaseModel):
 
     def create_link(self):
         gateway = get_gateway_backend(self.gateway.name)
-        if self.billing_cycle == 'yearly':
+        if self.plan.billing_cycle == 'yearly':
             total_count = 1
         else:
             total_count = 12
-        subscription = gateway.create_subscription_link(self.plan.plan_id, total_count, self.buyer.email, self.billing_cycle)
+        subscription = gateway.create_subscription_link(plan_id=self.plan.plan_id, total_count=total_count, email=self.buyer.email, phone=self.buyer.mobile)
+        print("Subscription: ", subscription)
         self.payment_link = subscription['short_url']
         self.payment_link_id = subscription['id']
         self.subscription_id = subscription['id']
+        self.billing_cycle = self.plan.billing_cycle
         self.save()
         return self.payment_link
+    
+    def cancel(self):
+        gateway = get_gateway_backend(self.gateway.name)
+        gateway.cancel_subscription(self.subscription_id)
+        self.status = 'cancelled'
+        self.save()
+        return self.status

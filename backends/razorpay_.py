@@ -246,12 +246,17 @@ class AirRazorpayBackend:
     def get_payment_link(self, link_id):
         return self.client.payment_link.fetch(link_id)
 
-    def create_subscription_link(self, plan_id, total_count, email, quantity=1):
+    def create_subscription_link(self, plan_id, total_count, quantity=1, email=None, phone=None):
         return self.client.subscription.create({
             'plan_id': plan_id,
             'quantity': quantity,
+            'customer_notify': email is not None or phone is not None,
             'total_count': total_count,
-            'start_at': datetime.now()
+            'start_at': int(datetime.datetime.now().timestamp()),
+            "notify_info": {
+                "notify_phone": phone if phone is not None else None,
+                "notify_email": email if email is not None else None
+            }
         })
 
     def create_order(self, amount, currency):
@@ -260,6 +265,17 @@ class AirRazorpayBackend:
             'currency': currency,
         })
         return order
+
+    def cancel_subscription(self, subscription_id):
+        try:
+            subscription = self.client.subscription.fetch(subscription_id)
+            response = self.client.subscription.cancel(subscription['id'], {
+                'cancel_at_cycle_end': True,
+            })
+            return response
+        except Exception as e:
+            print('Error canceling subscription: ', e)
+            raise e
 
     def create_customer(self, data):
         try:
