@@ -127,7 +127,7 @@ class GetSubscription(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return self.serializer_class.Meta.model.objects.filter(buyer=self.request.user)
+        return self.serializer_class.Meta.model.objects.filter(buyer=self.request.user, is_deleted=False)
 
     def get(self, request, *args, **kwargs):
         subscriptions = self.get_queryset()

@@ -7,10 +7,12 @@ from airpay.models import Subscriptions
 class RazorpayStorage:
 
     @staticmethod
-    def sync_subscription_status(subscription_id, status):
+    def sync_subscription_status(subscription_id, status, customer_id):
         try:
             subscription = Subscriptions.objects.get(subscription_id=subscription_id)
             subscription.status = status
+            if customer_id is not None:
+                subscription.customer_id = customer_id
             subscription.save()
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(

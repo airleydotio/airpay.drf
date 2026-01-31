@@ -252,7 +252,6 @@ class AirRazorpayBackend:
             'quantity': quantity,
             'customer_notify': email is not None or phone is not None,
             'total_count': total_count,
-            'start_at': int(datetime.datetime.now().timestamp()),
             "notify_info": {
                 "notify_phone": phone if phone is not None else None,
                 "notify_email": email if email is not None else None
@@ -335,19 +334,19 @@ class AirRazorpayBackend:
             data = json.loads(data.decode('utf-8'))
             subscription = data['payload']['subscription']['entity']
             if data['event'] == 'subscription.activated' or data['event'] == 'subscription.authenticated':
-                storage.sync_subscription_status(subscription['id'], 'active')
+                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
             elif data['event'] == 'subscription.completed':
-                storage.sync_subscription_status(subscription['id'], 'completed')
+                storage.sync_subscription_status(subscription['id'], 'completed', subscription['customer_id'])
             elif data['event'] == 'subscription.halted':
-                storage.sync_subscription_status(subscription['id'], 'halted')
+                storage.sync_subscription_status(subscription['id'], 'halted', subscription['customer_id'])
             elif data['event'] == 'subscription.pending':
-                storage.sync_subscription_status(subscription['id'], 'pending')
+                storage.sync_subscription_status(subscription['id'], 'pending', subscription['customer_id'])
             elif data['event'] == 'subscription.resumed':
-                storage.sync_subscription_status(subscription['id'], 'active')
+                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
             elif data['event'] == 'subscription.paused':
-                storage.sync_subscription_status(subscription['id'], 'active')
+                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
             elif data['event'] == 'subscription.cancelled':
-                storage.sync_subscription_status(subscription['id'], 'cancelled')
+                storage.sync_subscription_status(subscription['id'], 'cancelled', subscription['customer_id'])
         except Exception as e:
             print('Error processing webhook: ', e)
             raise e

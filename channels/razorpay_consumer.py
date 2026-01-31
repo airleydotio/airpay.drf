@@ -15,10 +15,7 @@ class AirPayConsumer(WebsocketConsumer):
         self.user = self.scope["user"]
         self.subscription_id = self.scope['subscription_id']
         self.room_group_name = 'airpay_%s' % self.subscription_id
-        print(self.room_group_name)
-
         if self.user.is_anonymous:
-            print('inside user is anonymous')
             self.close()
             return
         # Join a room group
