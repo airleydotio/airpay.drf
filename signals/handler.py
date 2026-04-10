@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=get_purchase_model())
 def sync_transfer(sender, instance, created, **kwargs):
+    # Skip if instance doesn't have the required airpay purchase attributes
+    # FeeCollection uses razorpay_payment_id instead of payment_id
+    if not hasattr(instance, 'cohort') or not hasattr(instance, 'payment_id'):
+        return
+
     if created or not instance.payment_id or not instance.cohort.course.seller.can_accept_payments():
         return
     if instance.payment_id:

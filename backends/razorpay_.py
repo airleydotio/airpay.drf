@@ -39,11 +39,11 @@ class AirRazorpayBackend:
 
             if not registered_address or not operations_address:
                 raise Exception('Address not found')
-            
+
             # create a unique reference id
             def time_based_reference_id():
                 return f'AIRPAY_SELLER_{data.seller.id}_{int(time.time())}'[:19]
-            
+
             request_body_ = {
                 'email': data.email,
                 'phone': data.phone_number.replace("+91", '').replace(" ", ""),
@@ -329,24 +329,103 @@ class AirRazorpayBackend:
         try:
             from airpay.storage import RazorpayStorage
             storage = RazorpayStorage()
-            self.client.utility.verify_webhook_signature(data.decode(), webhook_signature,
-                                                         settings.RAZORPAY_WEBHOOK_SECRET)
+
+            # Verify webhook signature
+            self.client.utility.verify_webhook_signature(
+                data.decode(),
+                webhook_signature,
+                settings.RAZORPAY_WEBHOOK_SECRET
+            )
+
             data = json.loads(data.decode('utf-8'))
-            subscription = data['payload']['subscription']['entity']
-            if data['event'] == 'subscription.activated' or data['event'] == 'subscription.authenticated':
-                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
-            elif data['event'] == 'subscription.completed':
-                storage.sync_subscription_status(subscription['id'], 'completed', subscription['customer_id'])
-            elif data['event'] == 'subscription.halted':
-                storage.sync_subscription_status(subscription['id'], 'halted', subscription['customer_id'])
-            elif data['event'] == 'subscription.pending':
-                storage.sync_subscription_status(subscription['id'], 'pending', subscription['customer_id'])
-            elif data['event'] == 'subscription.resumed':
-                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
-            elif data['event'] == 'subscription.paused':
-                storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
-            elif data['event'] == 'subscription.cancelled':
-                storage.sync_subscription_status(subscription['id'], 'cancelled', subscription['customer_id'])
+            event = data.get('event')
+
+            # Handle subscription webhooks
+            if event and event.startswith('subscription.'):
+                self._handle_subscription_webhook(data, storage)
+
+            # Handle payment link webhooks
+            elif event and event.startswith('payment_link.'):
+                self._handle_payment_link_webhook(data)
+
+            # Handle payment webhooks
+            elif event and event.startswith('payment.'):
+                self._handle_payment_webhook(data)
+
+            else:
+                print(f'Unhandled webhook event: {event}')
+
         except Exception as e:
             print('Error processing webhook: ', e)
+            raise e
+
+    def _handle_subscription_webhook(self, data, storage):
+        """Handle subscription-related webhook events"""
+        event = data.get('event')
+        subscription = data['payload']['subscription']['entity']
+
+        if event == 'subscription.activated' or event == 'subscription.authenticated':
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
+        elif event == 'subscription.completed':
+            storage.sync_subscription_status(subscription['id'], 'completed', subscription['customer_id'])
+        elif event == 'subscription.halted':
+            storage.sync_subscription_status(subscription['id'], 'halted', subscription['customer_id'])
+        elif event == 'subscription.pending':
+            storage.sync_subscription_status(subscription['id'], 'pending', subscription['customer_id'])
+        elif event == 'subscription.resumed':
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
+        elif event == 'subscription.paused':
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
+        elif event == 'subscription.cancelled':
+            storage.sync_subscription_status(subscription['id'], 'cancelled', subscription['customer_id'])
+        else:
+            print(f'Unhandled subscription event: {event}')
+
+    def _handle_payment_link_webhook(self, data):
+        """Handle payment link webhook events using configured callback"""
+        event = data.get('event')
+        payment_link = data['payload']['payment_link']['entity']
+        payment = data['payload'].get('payment', {}).get('entity')
+
+        try:
+            # Get callback from settings
+            callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_LINK_WEBHOOK_HANDLER')
+
+            if not callback_path:
+                print('AIRPAY.PAYMENT_LINK_WEBHOOK_HANDLER not configured, skipping payment_link webhook')
+                return
+
+            # Import and call the configured handler
+            from django.utils.module_loading import import_string
+            handler = import_string(callback_path)
+
+            # Call the handler with webhook data
+            handler(event=event, payment_link=payment_link, payment=payment)
+
+        except Exception as e:
+            print(f'Error handling payment_link webhook: {e}')
+            raise e
+
+    def _handle_payment_webhook(self, data):
+        """Handle direct payment webhook events using configured callback"""
+        event = data.get('event')
+        payment = data['payload']['payment']['entity']
+
+        try:
+            # Get callback from settings
+            callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_WEBHOOK_HANDLER')
+
+            if not callback_path:
+                print('AIRPAY.PAYMENT_WEBHOOK_HANDLER not configured, skipping payment webhook')
+                return
+
+            # Import and call the configured handler
+            from django.utils.module_loading import import_string
+            handler = import_string(callback_path)
+
+            # Call the handler with webhook data
+            handler(event=event, payment=payment)
+
+        except Exception as e:
+            print(f'Error handling payment webhook: {e}')
             raise e
