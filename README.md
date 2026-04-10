@@ -2,6 +2,17 @@
 
 Airpay is a Django app that provides payment gateway integration with support for multiple payment providers (currently Razorpay, with Stripe support planned).
 
+## Features
+
+- **Multi-Gateway Support** - Razorpay integration with Stripe planned
+- **Payment Links** - Create and manage payment links
+- **Subscriptions** - Full subscription lifecycle management
+- **Seller Onboarding** - KYC and Route onboarding for Razorpay
+- **Webhook Handlers** - Configurable webhook processing for payment events
+- **Transfer Management** - Automatic payment routing to sellers
+- **Project-Agnostic** - Configurable to work with any Django project structure
+- **Secure** - Built-in webhook signature verification and field encryption
+
 ## Configuration
 
 Add the following configuration to your Django `settings.py`:
@@ -24,6 +35,15 @@ AIRPAY = {
     # Optional: Name of the update timestamp field in your BASE_MODEL
     # Default: 'update_date'
     'UPDATE_DATE_FIELD': 'update_date',
+    
+    # Optional: Webhook handlers (for Razorpay payment events)
+    # Format: 'module.path.function_name'
+    
+    # Handler for payment link webhooks (payment_link.paid, payment_link.expired, etc.)
+    'PAYMENT_LINK_WEBHOOK_HANDLER': 'myapp.webhooks.handle_payment_link_webhook',
+    
+    # Handler for direct payment webhooks (payment.captured, payment.failed, etc.)
+    'PAYMENT_WEBHOOK_HANDLER': 'myapp.webhooks.handle_payment_webhook',
 }
 ```
 
@@ -92,10 +112,67 @@ Add these to your `.env` file:
 # Razorpay Configuration
 RAZORPAY_API_KEY='your_razorpay_key_id'
 RAZORPAY_API_SECRET='your_razorpay_key_secret'
+RAZORPAY_WEBHOOK_SECRET='your_webhook_secret'
 
 # Field Encryption (for sensitive data like PAN, bank details)
 FIELD_ENCRYPTION_KEY='your_encryption_key'
 ```
+
+## Webhooks
+
+Airpay supports automatic payment status updates via Razorpay webhooks. The webhook handlers are **configurable** to keep the module project-agnostic.
+
+### Supported Events
+
+- **Payment Link Events:** `payment_link.paid`, `payment_link.expired`, `payment_link.cancelled`, `payment_link.partially_paid`
+- **Payment Events:** `payment.captured`, `payment.authorized`, `payment.failed`
+- **Subscription Events:** `subscription.activated`, `subscription.cancelled`, `subscription.completed`, etc.
+
+### Configuration
+
+Define webhook handlers in your project and configure them in `settings.py`:
+
+```python
+# myapp/webhooks.py
+def handle_payment_link_webhook(event, payment_link, payment):
+    """
+    Handle payment link webhook events from Razorpay.
+    
+    Args:
+        event (str): Event type (e.g., 'payment_link.paid')
+        payment_link (dict): Payment link entity from Razorpay
+        payment (dict): Payment entity from Razorpay (if available)
+    """
+    # Your business logic here
+    pass
+
+def handle_payment_webhook(event, payment):
+    """
+    Handle payment webhook events from Razorpay.
+    
+    Args:
+        event (str): Event type (e.g., 'payment.captured')
+        payment (dict): Payment entity from Razorpay
+    """
+    # Your business logic here
+    pass
+```
+
+### Documentation
+
+- **[WEBHOOK_HANDLERS.md](WEBHOOK_HANDLERS.md)** - Complete guide to configuring webhook handlers
+- **[WEBHOOK_SETUP.md](WEBHOOK_SETUP.md)** - Step-by-step Razorpay webhook setup
+
+### Webhook Endpoint
+
+```
+POST /api/airpay/webhook/razorpay/
+```
+
+This endpoint automatically:
+1. Verifies webhook signature
+2. Routes events to appropriate handlers
+3. Calls your configured webhook handlers
 
 ## Usage
 
