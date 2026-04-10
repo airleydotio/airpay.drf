@@ -15,7 +15,6 @@ from airpay.utils.generic import get_base_model
 # Get the base model from settings
 BaseModel = get_base_model()
 
-
 class PaymentGateway(BaseModel):
     name = models.CharField(
         max_length=255,
@@ -106,7 +105,7 @@ class AirPlan(BaseModel):
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
     features = models.ManyToManyField(AirPlanFeatures, related_name="features")
     is_addon = models.BooleanField(default=False)
-    
+
 
     # Generic fields for project-specific use
     tier_level = models.CharField(
