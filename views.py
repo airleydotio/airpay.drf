@@ -15,10 +15,12 @@ from airpay.models import AirSeller, Subscriptions, AirPlan
 from airpay.razorpay_constants import BUSINESS_TYPE, BUSINESS_CATEGORY, BUSINESS_SUB_CATEGORY, KYC_DOCUMENTS
 from airpay.serializers import AirPlanSerializer, SubscriptionsSerializer, RazorpayRouteOnboardingDetailsSerializer
 from airpay.utils.gateway import get_gateway_backend
-from airpay.utils.generic import get_gateway
+from airpay.utils.generic import get_cache_middleware, get_gateway
 from api_views.generic import CreateUpdateAPIView, ListAPIView
 from .helpers.generic import pickKeysFromDict
 from .helpers.respones.response import SendResponse
+
+CACHE_MIDDLEWARE = get_cache_middleware()
 
 class OpenPaymentGateway(generics.ListAPIView):
     """Renders payment page; serializer_class is for schema generation only."""
@@ -67,7 +69,7 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
                 error=True,
                 success=False
             ).send()
-    
+
     @staticmethod
     def has_address_fields(request):
         """
@@ -107,7 +109,7 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
             ).send()
 
 
-class ListAirPlans(ListAPIView):
+class ListAirPlans(CACHE_MIDDLEWARE, ListAPIView):
     serializer_class = AirPlanSerializer
     permission_classes = [AllowAny]
 
@@ -120,8 +122,7 @@ class ListAirPlans(ListAPIView):
             error=False,
             success=True
         ).send()
-    
-    
+
 class GetSubscription(ListAPIView):
     serializer_class = SubscriptionsSerializer
     permission_classes = [IsAuthenticated]

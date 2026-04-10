@@ -6,7 +6,6 @@ This allows airpay models to use the new field names while maintaining compatibi
 from django.db import models
 from apps.core.models import UUIDModel
 
-
 class AirpayTimestampedModel(models.Model):
     """
     Timestamped model compatible with airpay's existing database schema.
