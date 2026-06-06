@@ -58,8 +58,8 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
         try:
             self.check_keys()
             seller, _ = AirSeller.objects.get_or_create(user_id=request.user.id)
-            request.data['seller'] = seller.id
-            request.data['gateway'] = get_gateway('razorpay').id
+            request.data['seller'] = seller.pk
+            request.data['gateway'] = get_gateway('razorpay').pk
             return super().post(request, *args, **kwargs)
         except Exception as e:
             return SendResponse(
@@ -89,7 +89,7 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
                 from .tasks import create_address
                 create_address.apply_async(
                     kwargs={
-                        'pk': object_.id,
+                        'pk': object_.pk,
                         '_address': pickKeysFromDict(request.data, ['street1', 'street2', 'city', 'state',
                                                                     'country', 'postal_code'])
                     }

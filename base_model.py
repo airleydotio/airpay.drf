@@ -52,4 +52,4 @@ class AirpayBaseModel(UUIDModel, AirpayTimestampedModel, AirpaySoftDeleteModel):
         """Default string representation using name or id"""
         if hasattr(self, 'name'):
             return str(self.name)
-        return str(self.id)
+        return str(self.pk)
