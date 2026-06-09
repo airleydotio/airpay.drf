@@ -175,4 +175,3 @@ static
 /data/
 redis
 celerybeat-schedule.db
-migrations/
