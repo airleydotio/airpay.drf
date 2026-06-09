@@ -99,7 +99,12 @@ class AirPlan(BaseModel):
     plan_id = models.CharField(max_length=255)
     billing_cycle = models.CharField(
         max_length=255,
-        choices=[("monthly", "Monthly"), ("yearly", "Yearly")],
+        choices=[
+            ("monthly", "Monthly"),
+            ("3_month", "3 Month"),
+            ("9_month", "9 Month"),
+            ("yearly", "Yearly"),
+        ],
         default="monthly",
     )
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
@@ -221,7 +226,12 @@ class Subscriptions(BaseModel):
     status = models.CharField(max_length=255, default="pending")
     billing_cycle = models.CharField(
         max_length=255,
-        choices=[("monthly", "Monthly"), ("yearly", "Yearly")],
+        choices=[
+            ("monthly", "Monthly"),
+            ("3_month", "3 Month"),
+            ("9_month", "9 Month"),
+            ("yearly", "Yearly"),
+        ],
         default="monthly",
     )
     order_id = models.CharField(max_length=255, null=True, blank=True)

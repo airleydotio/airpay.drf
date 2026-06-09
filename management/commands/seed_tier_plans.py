@@ -14,13 +14,13 @@ Tier         | Phase       | Term     | Monthly effective | Total
 -------------|-------------|----------|-------------------|----------
 Companion    | —           | monthly  | ₹499              | ₹499/mo
 Guardian     | —           | monthly  | ₹1,999            | ₹1,999/mo
-Medical      | active      | 3-month  | ₹7,777            | ₹23,331
-Medical      | active      | 9-month  | ₹6,666            | ₹59,994
+Medical      | active      | 3_month  | ₹7,777            | ₹23,331
+Medical      | active      | 9_month  | ₹6,666            | ₹59,994
 Medical      | maintenance | monthly  | ₹4,444            | ₹4,444/mo
-Alumni       | —           | monthly  | ₹0 (placeholder)  | inactive
 
-AirPlan.billing_cycle only supports monthly/yearly, so multi-month medical
-commitments are stored as monthly with the term encoded in metadata.
+AirPlan.billing_cycle carries the term directly (monthly/3_month/9_month/
+yearly choices added in migration 0002), matching the canonical CN-007
+billing cycles in marketplace.PricingPlan exactly.
 
 Usage:
     python manage.py seed_tier_plans
@@ -45,7 +45,6 @@ TIER_PLANS = [
         False,
         {
             "phase": None,
-            "term": "monthly",
             "monthly_effective_paise": 49900,
             "total_paise": 49900,
         },
@@ -60,7 +59,6 @@ TIER_PLANS = [
         False,
         {
             "phase": None,
-            "term": "monthly",
             "monthly_effective_paise": 199900,
             "total_paise": 199900,
         },
@@ -70,12 +68,11 @@ TIER_PLANS = [
         "Medical (3-month)",
         "medical",
         7777.0,
-        "monthly",
+        "3_month",
         True,
         False,
         {
             "phase": "active",
-            "term": "3_month",
             "commitment_months": 3,
             "monthly_effective_paise": 777700,
             "total_paise": 2333100,
@@ -86,12 +83,11 @@ TIER_PLANS = [
         "Medical (9-month)",
         "medical",
         6666.0,
-        "monthly",
+        "9_month",
         True,
         False,
         {
             "phase": "active",
-            "term": "9_month",
             "commitment_months": 9,
             "monthly_effective_paise": 666600,
             "total_paise": 5999400,
@@ -107,23 +103,8 @@ TIER_PLANS = [
         False,
         {
             "phase": "maintenance",
-            "term": "monthly",
             "monthly_effective_paise": 444400,
             "total_paise": 444400,
-        },
-    ),
-    (
-        "alumni_monthly",
-        "Alumni",
-        "alumni",
-        0.0,
-        "monthly",
-        False,  # placeholder — not launched, no validated price
-        False,
-        {
-            "phase": None,
-            "term": "monthly",
-            "placeholder": True,
         },
     ),
 ]
@@ -222,6 +203,19 @@ class Command(BaseCommand):
                         f"  = {plan_id} ({tier_level}) ₹{price:.0f}/{billing_cycle}"
                     )
 
+            # Prune stale seed rows: any cn007_seed AirPlan whose plan_id is no
+            # longer in TIER_PLANS (e.g. a tier we removed). Keeps the seed
+            # authoritative and self-correcting on re-run.
+            current_ids = {row[0] for row in TIER_PLANS}
+            stale = AirPlan.objects.filter(metadata__source="cn007_seed").exclude(
+                plan_id__in=current_ids
+            )
+            pruned_n = stale.count()
+            for sp in stale:
+                self.stdout.write(self.style.WARNING(f"  - prune {sp.plan_id} ({sp.tier_level})"))
+            if not dry_run:
+                stale.delete()
+
             if dry_run:
                 transaction.set_rollback(True)
                 self.stdout.write(self.style.WARNING("\nDry run complete — rolled back."))
@@ -230,6 +224,6 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"\nDone. {created_n} created, {updated_n} updated, "
-                f"{len(TIER_PLANS)} total tier plans on '{gateway_name}'."
+                f"{pruned_n} pruned, {len(TIER_PLANS)} total tier plans on '{gateway_name}'."
             )
         )
