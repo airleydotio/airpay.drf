@@ -252,17 +252,24 @@ class Subscriptions(BaseModel):
         self.save()
         return self.order_id
 
-    def create_link(self):
+    def create_link(self, trial_days: int = 0):
         gateway = get_gateway_backend(self.gateway.name)
         if self.plan.billing_cycle == "yearly":
             total_count = 1
         else:
             total_count = 12
+        # Card-upfront trial: first charge starts `trial_days` out; the member
+        # authorises the mandate now. Omitted → billing starts immediately.
+        start_at = None
+        if trial_days and trial_days > 0:
+            import time as _time
+            start_at = int(_time.time()) + int(trial_days) * 86400
         subscription = gateway.create_subscription_link(
             plan_id=self.plan.plan_id,
             total_count=total_count,
             email=self.buyer.email,
             phone=self.buyer.mobile,
+            start_at=start_at,
         )
         self.payment_link = subscription["short_url"]
         self.payment_link_id = subscription["id"]
