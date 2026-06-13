@@ -39,11 +39,9 @@ class AirSeller(BaseModel):
     stakeholder_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return (
-            self.user.name
-            or "No Name" + " - " + self.razorpay_account_id
-            or "No Account ID"
-        )
+        name = self.user.get_full_name() or self.user.username or "No Name"
+        account = self.razorpay_account_id or "No Account ID"
+        return f"{name} - {account}"
 
     def can_accept_payments(self):
         return (
@@ -64,7 +62,8 @@ class AirPayTransferLogs(BaseModel):
     settlement_status = models.CharField(max_length=255, default="pending")
 
     def __str__(self):
-        return f"{self.seller.user.name} - {self.amount} - {self.status}"
+        name = self.seller.user.get_full_name() or self.seller.user.username or "Unknown"
+        return f"{name} - {self.amount} - {self.transfer_status}"
 
 
 class AirPlanFeatures(BaseModel):
@@ -169,7 +168,8 @@ class RazorpayRouteOnboardingDetails(BaseModel):
     notified_for = models.CharField(default=None, null=True, blank=True, max_length=255)
 
     def __str__(self):
-        return f"{self.seller.user.name} - {self.razorpay_user_id}"
+        name = self.seller.user.get_full_name() or self.seller.user.username or "Unknown"
+        return f"{name} - {self.razorpay_user_id or 'No RZP ID'}"
 
     def complete_onboarding(self):
         try:
@@ -243,7 +243,8 @@ class Subscriptions(BaseModel):
     payment_link_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.buyer.name} - {self.plan.name}"
+        buyer_name = self.buyer.get_full_name() or self.buyer.username or "Unknown"
+        return f"{buyer_name} - {self.plan.name}"
 
     def create_order(self):
         gateway = get_gateway_backend(self.gateway.name)
