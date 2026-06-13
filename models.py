@@ -283,6 +283,5 @@ class Subscriptions(BaseModel):
         gateway = get_gateway_backend(self.gateway.name)
         gateway.cancel_subscription(self.subscription_id)
         self.status = "cancelled"
-        self.is_active = False
         self.save()
         return True
