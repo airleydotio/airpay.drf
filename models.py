@@ -175,7 +175,7 @@ class RazorpayRouteOnboardingDetails(BaseModel):
         try:
             from .tasks import sync_details_to_razorpay
 
-            sync_details_to_razorpay.delay(self.id)
+            sync_details_to_razorpay.delay(self.pk)
 
         except Exception as e:
             logging.error(f"Error completing onboarding: {e}\n {e.__traceback__}")

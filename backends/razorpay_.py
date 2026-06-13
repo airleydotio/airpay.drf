@@ -42,7 +42,7 @@ class AirRazorpayBackend:
 
             # create a unique reference id
             def time_based_reference_id():
-                return f'AIRPAY_SELLER_{data.seller.id}_{int(time.time())}'[:19]
+                return f'AIRPAY_SELLER_{data.seller.pk}_{int(time.time())}'[:19]
 
             request_body_ = {
                 'email': data.email,
