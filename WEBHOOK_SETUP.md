@@ -127,13 +127,13 @@ def _handle_subscription_webhook(data, storage):
 payment_link.paid:
     ├─> status = 'PAID'
     ├─> paid_date = today
-    ├─> razorpay_payment_id = payment.id
+    ├─> razorpay_payment_id = payment.pk
     ├─> offline = False
     └─> save()
 
 payment_link.partially_paid:
     ├─> status = 'PENDING'
-    ├─> razorpay_payment_id = payment.id
+    ├─> razorpay_payment_id = payment.pk
     └─> save()
 
 payment_link.expired:
