@@ -10,7 +10,7 @@ def get_onboarding_details(
     """
     try:
         onboarding_details = RazorpayRouteOnboardingDetails.objects.filter(
-            id=pk,
+            pk=pk,
             gateway__name=gateway,
             seller__needs_route=True, )
 
