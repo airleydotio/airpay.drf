@@ -246,8 +246,17 @@ class AirRazorpayBackend:
     def get_payment_link(self, link_id):
         return self.client.payment_link.fetch(link_id)
 
-    def create_subscription_link(self, plan_id, total_count, quantity=1, email=None, phone=None):
-        return self.client.subscription.create({
+    def create_subscription_link(self, plan_id, total_count, quantity=1, email=None,
+                                 phone=None, start_at=None):
+        """
+        Create a Razorpay subscription auth link.
+
+        start_at: optional Unix epoch (seconds) for the FIRST billing cycle. Set it
+        in the future for a card-upfront free trial — the customer authorises the
+        mandate now via short_url, and the first plan charge lands at start_at
+        (CN-046: 7-day trial). Omitted → billing starts immediately.
+        """
+        data = {
             'plan_id': plan_id,
             'quantity': quantity,
             'customer_notify': email is not None or phone is not None,
@@ -256,7 +265,10 @@ class AirRazorpayBackend:
                 "notify_phone": phone if phone is not None else None,
                 "notify_email": email if email is not None else None
             }
-        })
+        }
+        if start_at:
+            data['start_at'] = int(start_at)
+        return self.client.subscription.create(data)
 
     def create_order(self, amount, currency):
         order = self.client.order.create(data={

@@ -71,6 +71,7 @@ class SubscriptionsAdmin(MODEL_ADMIN):
         "seller",
         "plan",
         "status",
+        "buyer",
         get_create_date_field(),
         get_update_date_field(),
     ]

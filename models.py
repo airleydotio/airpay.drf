@@ -39,11 +39,9 @@ class AirSeller(BaseModel):
     stakeholder_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return (
-            self.user.name
-            or "No Name" + " - " + self.razorpay_account_id
-            or "No Account ID"
-        )
+        name = self.user.get_full_name() or self.user.username or "No Name"
+        account = self.razorpay_account_id or "No Account ID"
+        return f"{name} - {account}"
 
     def can_accept_payments(self):
         return (
@@ -64,7 +62,8 @@ class AirPayTransferLogs(BaseModel):
     settlement_status = models.CharField(max_length=255, default="pending")
 
     def __str__(self):
-        return f"{self.seller.user.name} - {self.amount} - {self.status}"
+        name = self.seller.user.get_full_name() or self.seller.user.username or "Unknown"
+        return f"{name} - {self.amount} - {self.transfer_status}"
 
 
 class AirPlanFeatures(BaseModel):
@@ -99,7 +98,12 @@ class AirPlan(BaseModel):
     plan_id = models.CharField(max_length=255)
     billing_cycle = models.CharField(
         max_length=255,
-        choices=[("monthly", "Monthly"), ("yearly", "Yearly")],
+        choices=[
+            ("monthly", "Monthly"),
+            ("3_month", "3 Month"),
+            ("9_month", "9 Month"),
+            ("yearly", "Yearly"),
+        ],
         default="monthly",
     )
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.CASCADE)
@@ -164,7 +168,8 @@ class RazorpayRouteOnboardingDetails(BaseModel):
     notified_for = models.CharField(default=None, null=True, blank=True, max_length=255)
 
     def __str__(self):
-        return f"{self.seller.user.name} - {self.razorpay_user_id}"
+        name = self.seller.user.get_full_name() or self.seller.user.username or "Unknown"
+        return f"{name} - {self.razorpay_user_id or 'No RZP ID'}"
 
     def complete_onboarding(self):
         try:
@@ -221,7 +226,12 @@ class Subscriptions(BaseModel):
     status = models.CharField(max_length=255, default="pending")
     billing_cycle = models.CharField(
         max_length=255,
-        choices=[("monthly", "Monthly"), ("yearly", "Yearly")],
+        choices=[
+            ("monthly", "Monthly"),
+            ("3_month", "3 Month"),
+            ("9_month", "9 Month"),
+            ("yearly", "Yearly"),
+        ],
         default="monthly",
     )
     order_id = models.CharField(max_length=255, null=True, blank=True)
@@ -233,7 +243,8 @@ class Subscriptions(BaseModel):
     payment_link_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.buyer.name} - {self.plan.name}"
+        buyer_name = self.buyer.get_full_name() or self.buyer.username or "Unknown"
+        return f"{buyer_name} - {self.plan.name}"
 
     def create_order(self):
         gateway = get_gateway_backend(self.gateway.name)
@@ -242,17 +253,24 @@ class Subscriptions(BaseModel):
         self.save()
         return self.order_id
 
-    def create_link(self):
+    def create_link(self, trial_days: int = 0):
         gateway = get_gateway_backend(self.gateway.name)
         if self.plan.billing_cycle == "yearly":
             total_count = 1
         else:
             total_count = 12
+        # Card-upfront trial: first charge starts `trial_days` out; the member
+        # authorises the mandate now. Omitted → billing starts immediately.
+        start_at = None
+        if trial_days and trial_days > 0:
+            import time as _time
+            start_at = int(_time.time()) + int(trial_days) * 86400
         subscription = gateway.create_subscription_link(
             plan_id=self.plan.plan_id,
             total_count=total_count,
             email=self.buyer.email,
             phone=self.buyer.mobile,
+            start_at=start_at,
         )
         self.payment_link = subscription["short_url"]
         self.payment_link_id = subscription["id"]
@@ -265,6 +283,5 @@ class Subscriptions(BaseModel):
         gateway = get_gateway_backend(self.gateway.name)
         gateway.cancel_subscription(self.subscription_id)
         self.status = "cancelled"
-        self.is_active = False
         self.save()
         return True
