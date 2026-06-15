@@ -154,7 +154,7 @@ def update_kyc_status():
     """
     onboarding_details = RazorpayRouteOnboardingDetails.objects.filter(
         status__in=['under_review', 'needs_clarification']
-    ).values_list('id', flat=True)
+    ).values_list('pk', flat=True)
     for onboarding_detail in onboarding_details:
         request_product_configurations.delay(onboarding_detail)
 
