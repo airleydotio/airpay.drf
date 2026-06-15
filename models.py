@@ -249,7 +249,7 @@ class Subscriptions(BaseModel):
     def create_order(self):
         gateway = get_gateway_backend(self.gateway.name)
         order = gateway.create_order(self.plan.price * 100, self.plan.currency)
-        self.order_id = order["pk"]
+        self.order_id = order["id"]
         self.save()
         return self.order_id
 
@@ -273,8 +273,8 @@ class Subscriptions(BaseModel):
             start_at=start_at,
         )
         self.payment_link = subscription["short_url"]
-        self.payment_link_id = subscription["pk"]
-        self.subscription_id = subscription["pk"]
+        self.payment_link_id = subscription["id"]
+        self.subscription_id = subscription["id"]
         self.billing_cycle = self.plan.billing_cycle
         self.save()
         return self.payment_link
