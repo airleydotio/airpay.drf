@@ -335,7 +335,7 @@ def handle_payment_link_webhook(event, payment_link, payment):
 def on_payment_saved(sender, instance, **kwargs):
     if instance.status == 'PAID':
         # Send receipt, update inventory, etc.
-        send_receipt.delay(instance.id)
+        send_receipt.delay(instance.pk)
 ```
 
 ## Troubleshooting

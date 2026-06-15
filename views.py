@@ -68,13 +68,13 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
 
     def get_queryset(self):
         return self.serializer_class.Meta.model.objects.filter(
-            seller__user_id=self.request.user.id
+            seller__user_id=self.request.user.pk
         )
 
     def get_object(self):
         try:
             return self.serializer_class.Meta.model.objects.get(
-                seller__user_id=self.request.user.id
+                seller__user_id=self.request.user.pk
             )
         except self.serializer_class.Meta.model.DoesNotExist:
             return None
@@ -82,9 +82,9 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
     def post(self, request, *args, **kwargs):
         try:
             self.check_keys()
-            seller, _ = AirSeller.objects.get_or_create(user_id=request.user.id)
-            request.data["seller"] = seller.id
-            request.data["gateway"] = get_gateway("razorpay").id
+            seller, _ = AirSeller.objects.get_or_create(user_id=request.user.pk)
+            request.data["seller"] = seller.pk
+            request.data["gateway"] = get_gateway("razorpay").pk
             return super().post(request, *args, **kwargs)
         except Exception as e:
             return SendResponse(
@@ -122,7 +122,7 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
 
                 create_address.apply_async(
                     kwargs={
-                        "pk": object_.id,
+                        "pk": object_.pk,
                         "_address": pickKeysFromDict(
                             request.data,
                             [
@@ -206,11 +206,11 @@ class CreateSubscriptions(ListAPIView):
     def get(self, request, *args, **kwargs):
         try:
             seller_id = request.query_params.get(
-                "seller_id", self.get_admin_seller_id().id
+                "seller_id", self.get_admin_seller_id().pk
             )
             plan_id = request.query_params.get("plan_id")
             gateway = request.query_params.get("gateway", "razorpay")
-            buyer = request.query_params.get("buyer", request.user.id)
+            buyer = request.query_params.get("buyer", request.user.pk)
 
             if not seller_id or not plan_id or not gateway or not buyer:
                 raise Exception("Invalid request")

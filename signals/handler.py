@@ -32,27 +32,27 @@ def sync_transfer(sender, instance, created, **kwargs):
             seller = AirSeller.objects.filter(user=institute_owner).first()
 
             if not seller:
-                logger.warning(f'No AirSeller found for institute owner: {institute_owner.id}')
+                logger.warning(f'No AirSeller found for institute owner: {institute_owner.pk}')
                 return
 
             if not seller.can_accept_payments():
-                logger.warning(f'Seller {seller.id} cannot accept payments (not activated)')
+                logger.warning(f'Seller {seller.pk} cannot accept payments (not activated)')
                 return
 
             if not seller.razorpay_account_id:
-                raise Exception(f'Seller {seller.id} does not have a razorpay account')
+                raise Exception(f'Seller {seller.pk} does not have a razorpay account')
 
             # Create transfer task
             create_transfer.delay(
                 payment_id=instance.razorpay_payment_id,
-                seller_id=seller.id,
+                seller_id=seller.pk,
                 razorpay_account_id=seller.razorpay_account_id,
-                description=f"Transfer for fee collection {instance.id} - {institute.name}"
+                description=f"Transfer for fee collection {instance.pk} - {institute.name}"
             )
-            logger.info(f'Transfer created for FeeCollection {instance.id} to seller {seller.id}')
+            logger.info(f'Transfer created for FeeCollection {instance.pk} to seller {seller.pk}')
 
         except Exception as e:
-            logger.error(f'Error creating transfer for FeeCollection {instance.id}: {e}')
+            logger.error(f'Error creating transfer for FeeCollection {instance.pk}: {e}')
             raise e
 
     # Check if this is a cohort-based purchase (original airpay logic)
@@ -65,7 +65,7 @@ def sync_transfer(sender, instance, created, **kwargs):
                 raise Exception('Seller does not have a razorpay account')
             create_transfer.delay(
                 payment_id=instance.payment_id,
-                seller_id=instance.cohort.course.seller.id,
+                seller_id=instance.cohort.course.seller.pk,
                 razorpay_account_id=instance.cohort.course.seller.razorpay_account_id,
                 description=f"Transfer for {instance.cohort.profile.name} purchase"
             )
