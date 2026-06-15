@@ -93,8 +93,8 @@ class AirRazorpayBackend:
             }
 
             account = self.client.account.create(request_body_)
-            data.seller.razorpay_account_id = account['pk']
-            data.razorpay_user_id = account['pk']
+            data.seller.razorpay_account_id = account['id']
+            data.razorpay_user_id = account['id']
             data.seller.save()
             data.status = account['status']
             data.save()
@@ -148,7 +148,7 @@ class AirRazorpayBackend:
             },
             **kyc_details
         })
-        data.seller.stakeholder_id = stakeholder['pk']
+        data.seller.stakeholder_id = stakeholder['id']
         data.seller.save()
         print('Stakeholder created successfully')
 
@@ -211,10 +211,10 @@ class AirRazorpayBackend:
             print("Saving bank account")
             data.refresh_from_db()
             products = [
-                {'type': 'route', 'pk': data.route_configs['pk']}
+                {'type': 'route', 'id': data.route_configs['id']}
             ]
             for product in products:
-                self.client.product.edit(data.seller.razorpay_account_id, product['pk'], {
+                self.client.product.edit(data.seller.razorpay_account_id, product['id'], {
                     "settlements": {
                         "account_number": data.bank_account_number,
                         "ifsc_code": data.bank_ifsc,
@@ -280,7 +280,7 @@ class AirRazorpayBackend:
     def cancel_subscription(self, subscription_id):
         try:
             subscription = self.client.subscription.fetch(subscription_id)
-            response = self.client.subscription.cancel(subscription['pk'], {
+            response = self.client.subscription.cancel(subscription['id'], {
                 'cancel_at_cycle_end': True,
             })
             return response
@@ -377,19 +377,19 @@ class AirRazorpayBackend:
         subscription = data['payload']['subscription']['entity']
 
         if event == 'subscription.activated' or event == 'subscription.authenticated':
-            storage.sync_subscription_status(subscription['pk'], 'active', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
         elif event == 'subscription.completed':
-            storage.sync_subscription_status(subscription['pk'], 'completed', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'completed', subscription['customer_id'])
         elif event == 'subscription.halted':
-            storage.sync_subscription_status(subscription['pk'], 'halted', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'halted', subscription['customer_id'])
         elif event == 'subscription.pending':
-            storage.sync_subscription_status(subscription['pk'], 'pending', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'pending', subscription['customer_id'])
         elif event == 'subscription.resumed':
-            storage.sync_subscription_status(subscription['pk'], 'active', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
         elif event == 'subscription.paused':
-            storage.sync_subscription_status(subscription['pk'], 'active', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'active', subscription['customer_id'])
         elif event == 'subscription.cancelled':
-            storage.sync_subscription_status(subscription['pk'], 'cancelled', subscription['customer_id'])
+            storage.sync_subscription_status(subscription['id'], 'cancelled', subscription['customer_id'])
         else:
             print(f'Unhandled subscription event: {event}')
 

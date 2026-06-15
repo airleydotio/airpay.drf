@@ -86,7 +86,7 @@ def create_transfer(
             # Store transfer and settlement statuses if available in the response
             transfer_status=transfer['status'] if 'transfer_status' in transfer else None,
             settlement_status=transfer['status'] if 'settlement_status' in transfer else None,
-            transfer_id=transfer['pk'],
+            transfer_id=transfer['id'],
             description=description
         )
     except Exception as e:
@@ -154,7 +154,7 @@ def update_kyc_status():
     """
     onboarding_details = RazorpayRouteOnboardingDetails.objects.filter(
         status__in=['under_review', 'needs_clarification']
-    ).values_list('pk', flat=True)
+    ).values_list('id', flat=True)
     for onboarding_detail in onboarding_details:
         request_product_configurations.delay(onboarding_detail)
 
