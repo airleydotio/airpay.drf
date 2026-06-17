@@ -74,12 +74,12 @@ class AirRazorpayBackend:
                         }
                     }
                 },
-                'legal_info': {
-                    'pan': data.pan if data.pan is not None else data.business_pan,
-                } if data.gstin is None else {
-                    'pan': data.pan if data.pan is not None else data.business_pan,
-                    'gst': data.gstin
-                },
+                'legal_info': (
+                    {'promoter_pan': data.pan}
+                    if data.business_type in ('individual', 'not_yet_registered')
+                    else ({'pan': data.business_pan or data.pan, 'gst': data.gstin} if data.gstin
+                          else {'pan': data.business_pan or data.pan})
+                ),
                 'contact_name': data.bank_account_holder_name,
                 'contact_info': {
                     'refund': {
