@@ -246,6 +246,35 @@ class AirRazorpayBackend:
     def get_payment_link(self, link_id):
         return self.client.payment_link.fetch(link_id)
 
+    def create_plan(self, *, period, interval, amount, currency, name, description=None):
+        """
+        Create a Razorpay Plan object — required before create_subscription_link
+        can reference it. Razorpay subscriptions bind to a real gateway-side plan
+        id ('plan_XXXXXXXXXXXX'), never an arbitrary internal string; this was
+        previously missing entirely (AirPlan.plan_id, our internal natural key
+        like 'companion_monthly', was passed straight to subscription.create's
+        plan_id, which would fail against the live API since it never matched
+        an actual Razorpay Plan).
+
+        period: 'daily' | 'weekly' | 'monthly' | 'yearly' (Razorpay period enum).
+        interval: cycles per period unit (1 = every period, e.g. every month).
+        amount: paise (integer).
+        """
+        plan = self.client.plan.create({
+            'period': period,
+            'interval': interval,
+            'item': {
+                'name': name,
+                'amount': int(amount),
+                'currency': currency,
+                'description': description or name,
+            },
+        })
+        return plan
+
+    def fetch_plan(self, gateway_plan_id):
+        return self.client.plan.fetch(gateway_plan_id)
+
     def create_subscription_link(self, plan_id, total_count, quantity=1, email=None,
                                  phone=None, start_at=None):
         """

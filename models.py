@@ -124,6 +124,19 @@ class AirPlan(BaseModel):
         null=True,
         help_text="Generic JSON metadata for plan-specific settings",
     )
+    gateway_plan_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=(
+            "The REAL gateway-side plan id (e.g. Razorpay 'plan_XXXXXXXXXXXX'), "
+            "distinct from plan_id (our internal natural key). Razorpay subscription."
+            "create requires an actual Razorpay Plan object id — plan_id was "
+            "previously passed directly and would fail against the live API "
+            "since it never matched a real Razorpay plan. Lazily created + "
+            "cached here on first use (see razorpay_plan_sync.get_or_create_gateway_plan)."
+        ),
+    )
 
     def __str__(self):
         return self.name
@@ -256,11 +269,31 @@ class Subscriptions(BaseModel):
         return self.order_id
 
     def create_link(self, trial_days: int = 0):
+        from airpay.razorpay_plan_sync import commitment_cycles, get_or_create_gateway_plan
+
         gateway = get_gateway_backend(self.gateway.name)
+
         if self.plan.billing_cycle == "yearly":
             total_count = 1
         else:
-            total_count = 12
+            # CN-94 §1/§4 — multi-month plans (5_month/9_month/3_month) are a
+            # FIXED commitment at a discounted monthly rate, not open-ended
+            # billing. commitment_cycles() reads the seeded commitment_months;
+            # a plan with no commitment metadata (plain "monthly") gets the
+            # open-ended max. Previously hardcoded to 12 regardless of
+            # billing_cycle — a 9-month prepay-at-discount plan would have
+            # billed 12 cycles at the discounted rate instead of 9.
+            total_count = commitment_cycles(self.plan)
+
+        # Razorpay subscription.create needs a REAL gateway plan id, not our
+        # internal natural key (self.plan.plan_id) — created + cached on
+        # first use. The mandate the member authorises during checkout covers
+        # the full total_count × amount commitment automatically (Razorpay's
+        # own UPI Autopay/e-mandate registration flow shows the total
+        # contract value at signup) — CN-94 §4's "mandate cap ≥ prepay total"
+        # falls out of this being correct, not a separate field to set.
+        gateway_plan_id = get_or_create_gateway_plan(self.plan, backend=gateway)
+
         # Card-upfront trial: first charge starts `trial_days` out; the member
         # authorises the mandate now. Omitted → billing starts immediately.
         start_at = None
@@ -268,7 +301,7 @@ class Subscriptions(BaseModel):
             import time as _time
             start_at = int(_time.time()) + int(trial_days) * 86400
         subscription = gateway.create_subscription_link(
-            plan_id=self.plan.plan_id,
+            plan_id=gateway_plan_id,
             total_count=total_count,
             email=self.buyer.email,
             phone=self.buyer.mobile,
