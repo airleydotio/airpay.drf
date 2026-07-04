@@ -101,6 +101,7 @@ class AirPlan(BaseModel):
         choices=[
             ("monthly", "Monthly"),
             ("3_month", "3 Month"),
+            ("5_month", "5 Month"),
             ("9_month", "9 Month"),
             ("yearly", "Yearly"),
         ],
@@ -229,6 +230,7 @@ class Subscriptions(BaseModel):
         choices=[
             ("monthly", "Monthly"),
             ("3_month", "3 Month"),
+            ("5_month", "5 Month"),
             ("9_month", "9 Month"),
             ("yearly", "Yearly"),
         ],
