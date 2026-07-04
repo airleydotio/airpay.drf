@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import time
 from django.conf import settings
 import razorpay
@@ -7,8 +8,27 @@ import razorpay
 from airpay.helpers.email.tasks import send_email
 from constants.constants import Constants
 
+logger = logging.getLogger(__name__)
+
+
 def get_string_else_default(value, default):
     return value if value is not None else default
+
+
+def format_for_log(value):
+    try:
+        return json.dumps(value, default=str)
+    except (TypeError, ValueError):
+        return repr(value)
+
+
+def exception_for_log(error):
+    return {
+        'type': error.__class__.__name__,
+        'message': str(error),
+        'args': error.args,
+        'attributes': getattr(error, '__dict__', {}),
+    }
 
 
 class AirRazorpayBackend:
@@ -20,6 +40,7 @@ class AirRazorpayBackend:
         self.client = razorpay.Client(auth=(self.api_key, self.api_secret), session=None)
 
     def create_linked_account(self, data):
+        request_body_ = None
         try:
             data.refresh_from_db()
             if data.seller.razorpay_account_id:
@@ -92,7 +113,19 @@ class AirRazorpayBackend:
                 },
             }
 
+            logger.info(
+                'Razorpay linked account create request seller_id=%s onboarding_id=%s payload=%s',
+                data.seller.pk,
+                data.pk,
+                format_for_log(request_body_),
+            )
             account = self.client.account.create(request_body_)
+            logger.info(
+                'Razorpay linked account create response seller_id=%s onboarding_id=%s response=%s',
+                data.seller.pk,
+                data.pk,
+                format_for_log(account),
+            )
             data.seller.razorpay_account_id = account['id']
             data.razorpay_user_id = account['id']
             data.seller.save()
@@ -100,6 +133,13 @@ class AirRazorpayBackend:
             data.save()
             print('Linked account created successfully')
         except Exception as e:
+            logger.exception(
+                'Razorpay linked account create failed seller_id=%s onboarding_id=%s request=%s error=%s',
+                getattr(getattr(data, 'seller', None), 'pk', None),
+                getattr(data, 'pk', None),
+                format_for_log(request_body_),
+                format_for_log(exception_for_log(e)),
+            )
             print('Error creating razorpay linked account: ', e)
             raise e
 
