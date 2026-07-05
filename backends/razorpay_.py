@@ -15,6 +15,16 @@ def get_string_else_default(value, default):
     return value if value is not None else default
 
 
+def get_first_present_value(*values):
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        return value
+    return None
+
+
 def format_for_log(value):
     try:
         return json.dumps(value, default=str)
@@ -65,6 +75,14 @@ class AirRazorpayBackend:
             def time_based_reference_id():
                 return f'AIRPAY_SELLER_{data.seller.pk}_{int(time.time())}'[:19]
 
+            pan = get_first_present_value(data.pan, data.business_pan)
+            gstin = get_first_present_value(data.gstin)
+            legal_info = {}
+            if pan is not None:
+                legal_info['pan'] = pan
+                if gstin is not None:
+                    legal_info['gst'] = gstin
+
             request_body_ = {
                 'email': data.email,
                 'phone': data.phone_number.replace("+91", '').replace(" ", ""),
@@ -95,12 +113,6 @@ class AirRazorpayBackend:
                         }
                     }
                 },
-                'legal_info': {
-                    'pan': data.pan if data.pan is not None else data.business_pan,
-                } if data.gstin is None else {
-                    'pan': data.pan if data.pan is not None else data.business_pan,
-                    'gst': data.gstin
-                },
                 'contact_name': data.bank_account_holder_name,
                 'contact_info': {
                     'refund': {
@@ -112,6 +124,8 @@ class AirRazorpayBackend:
                     },
                 },
             }
+            if legal_info:
+                request_body_['legal_info'] = legal_info
 
             logger.info(
                 'Razorpay linked account create request seller_id=%s onboarding_id=%s payload=%s',
