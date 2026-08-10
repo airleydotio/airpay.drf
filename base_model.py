@@ -55,7 +55,9 @@ class AirpayUUIDModel(models.Model):
 class AirpayBaseModel(AirpayUUIDModel, AirpayTimestampedModel, AirpaySoftDeleteModel):
     """Default airpay base: UUID PK + mapped timestamps + soft delete."""
 
-    class Meta:
+    # Inherit TimestampedModel.Meta so ordering=['-created_at'] is not dropped
+    # (a bare Meta on a subclass replaces parent Meta options entirely).
+    class Meta(AirpayTimestampedModel.Meta):
         abstract = True
 
     def __str__(self):
