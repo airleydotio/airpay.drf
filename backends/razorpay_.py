@@ -337,7 +337,7 @@ class AirRazorpayBackend:
         start_at: optional Unix epoch (seconds) for the FIRST billing cycle. Set it
         in the future for a card-upfront free trial — the customer authorises the
         mandate now via short_url, and the first plan charge lands at start_at
-        (CN-046: 7-day trial). Omitted → billing starts immediately.
+        (e.g. a 7-day card-upfront trial). Omitted → billing starts immediately.
         """
         data = {
             'plan_id': plan_id,
@@ -443,6 +443,9 @@ class AirRazorpayBackend:
             elif event and event.startswith('payment_link.'):
                 self._handle_payment_link_webhook(data)
 
+            elif event and (event.startswith('refund.') or event.startswith('payment.disputed')):
+                self._handle_refund_webhook(data)
+
             # Handle payment webhooks
             elif event and event.startswith('payment.'):
                 self._handle_payment_webhook(data)
@@ -476,51 +479,71 @@ class AirRazorpayBackend:
         else:
             print(f'Unhandled subscription event: {event}')
 
+        # Host apps may sync product state after airpay updates the local
+        # Subscriptions row. Optional and best-effort: a host failure must not
+        # turn a signature-verified delivery into a non-200 for Razorpay.
+        self._invoke_optional_webhook_handler(
+            'SUBSCRIPTION_WEBHOOK_HANDLER',
+            event=event,
+            subscription=subscription,
+            swallow_errors=True,
+        )
+
+    def _invoke_optional_webhook_handler(self, setting_key, *, swallow_errors=False, **kwargs):
+        """Call a host-configured AIRPAY[<setting_key>] callback if present."""
+        callback_path = getattr(settings, 'AIRPAY', {}).get(setting_key)
+        if not callback_path:
+            return
+        try:
+            from django.utils.module_loading import import_string
+            import_string(callback_path)(**kwargs)
+        except Exception as exc:
+            print(f'Error in AIRPAY.{setting_key}: {exc}')
+            if not swallow_errors:
+                raise
+
     def _handle_payment_link_webhook(self, data):
         """Handle payment link webhook events using configured callback"""
         event = data.get('event')
         payment_link = data['payload']['payment_link']['entity']
         payment = data['payload'].get('payment', {}).get('entity')
-
-        try:
-            # Get callback from settings
-            callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_LINK_WEBHOOK_HANDLER')
-
-            if not callback_path:
-                print('AIRPAY.PAYMENT_LINK_WEBHOOK_HANDLER not configured, skipping payment_link webhook')
-                return
-
-            # Import and call the configured handler
-            from django.utils.module_loading import import_string
-            handler = import_string(callback_path)
-
-            # Call the handler with webhook data
-            handler(event=event, payment_link=payment_link, payment=payment)
-
-        except Exception as e:
-            print(f'Error handling payment_link webhook: {e}')
-            raise e
+        callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_LINK_WEBHOOK_HANDLER')
+        if not callback_path:
+            print('AIRPAY.PAYMENT_LINK_WEBHOOK_HANDLER not configured, skipping payment_link webhook')
+            return
+        self._invoke_optional_webhook_handler(
+            'PAYMENT_LINK_WEBHOOK_HANDLER',
+            event=event,
+            payment_link=payment_link,
+            payment=payment,
+        )
 
     def _handle_payment_webhook(self, data):
         """Handle direct payment webhook events using configured callback"""
         event = data.get('event')
         payment = data['payload']['payment']['entity']
+        callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_WEBHOOK_HANDLER')
+        if not callback_path:
+            print('AIRPAY.PAYMENT_WEBHOOK_HANDLER not configured, skipping payment webhook')
+            return
+        self._invoke_optional_webhook_handler(
+            'PAYMENT_WEBHOOK_HANDLER',
+            event=event,
+            payment=payment,
+        )
 
-        try:
-            # Get callback from settings
-            callback_path = getattr(settings, 'AIRPAY', {}).get('PAYMENT_WEBHOOK_HANDLER')
-
-            if not callback_path:
-                print('AIRPAY.PAYMENT_WEBHOOK_HANDLER not configured, skipping payment webhook')
-                return
-
-            # Import and call the configured handler
-            from django.utils.module_loading import import_string
-            handler = import_string(callback_path)
-
-            # Call the handler with webhook data
-            handler(event=event, payment=payment)
-
-        except Exception as e:
-            print(f'Error handling payment webhook: {e}')
-            raise e
+    def _handle_refund_webhook(self, data):
+        """Handle refund/dispute webhooks using configured callback."""
+        event = data.get('event')
+        payload = data.get('payload', {})
+        # Razorpay refund events carry refund.payment_id; dispute events carry
+        # the affected payment entity directly. Host handlers decide correlation.
+        refund = (
+            payload.get('refund', {}).get('entity')
+            or payload.get('payment', {}).get('entity', {})
+        )
+        self._invoke_optional_webhook_handler(
+            'REFUND_WEBHOOK_HANDLER',
+            event=event,
+            refund=refund,
+        )

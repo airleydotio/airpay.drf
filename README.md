@@ -23,10 +23,10 @@ AIRPAY = {
     # Format: 'app_label.ModelName'
     'PURCHASE_MODEL': 'fees_collection.FeeCollection',
     
-    # Required: The base model that all airpay models should inherit from
-    # This should be an abstract base model with common fields
-    # Format: 'app_label.ModelName'
-    'BASE_MODEL': 'helpers.BaseModel',
+    # Required: Abstract base model all airpay models inherit from.
+    # Use airpay.base_model.AirpayBaseModel (shipped, host-agnostic) or your own.
+    # Format: 'module.path.ClassName'
+    'BASE_MODEL': 'airpay.base_model.AirpayBaseModel',
     
     # Optional: Name of the creation timestamp field in your BASE_MODEL
     # Default: 'create_date'
@@ -44,6 +44,13 @@ AIRPAY = {
     
     # Handler for direct payment webhooks (payment.captured, payment.failed, etc.)
     'PAYMENT_WEBHOOK_HANDLER': 'myapp.webhooks.handle_payment_webhook',
+
+    # Handler for subscription webhooks after airpay syncs local status
+    # (subscription.activated, subscription.cancelled, …). Best-effort.
+    'SUBSCRIPTION_WEBHOOK_HANDLER': 'myapp.webhooks.handle_subscription_webhook',
+
+    # Handler for refund / dispute webhooks (refund.created, payment.disputed, …)
+    'REFUND_WEBHOOK_HANDLER': 'myapp.webhooks.handle_refund_webhook',
 }
 ```
 

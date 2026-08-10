@@ -276,22 +276,11 @@ class Subscriptions(BaseModel):
         if self.plan.billing_cycle == "yearly":
             total_count = 1
         else:
-            # CN-94 §1/§4 — multi-month plans (5_month/9_month/3_month) are a
-            # FIXED commitment at a discounted monthly rate, not open-ended
-            # billing. commitment_cycles() reads the seeded commitment_months;
-            # a plan with no commitment metadata (plain "monthly") gets the
-            # open-ended max. Previously hardcoded to 12 regardless of
-            # billing_cycle — a 9-month prepay-at-discount plan would have
-            # billed 12 cycles at the discounted rate instead of 9.
+            # Multi-month plans use metadata commitment_months; plain monthly
+            # plans get the open-ended max via commitment_cycles().
             total_count = commitment_cycles(self.plan)
 
-        # Razorpay subscription.create needs a REAL gateway plan id, not our
-        # internal natural key (self.plan.plan_id) — created + cached on
-        # first use. The mandate the member authorises during checkout covers
-        # the full total_count × amount commitment automatically (Razorpay's
-        # own UPI Autopay/e-mandate registration flow shows the total
-        # contract value at signup) — CN-94 §4's "mandate cap ≥ prepay total"
-        # falls out of this being correct, not a separate field to set.
+        # Razorpay needs a real gateway plan id, not the internal AirPlan.plan_id.
         gateway_plan_id = get_or_create_gateway_plan(self.plan, backend=gateway)
 
         # Card-upfront trial: first charge starts `trial_days` out; the member
