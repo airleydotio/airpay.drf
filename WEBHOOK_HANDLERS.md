@@ -25,6 +25,13 @@ AIRPAY = dict(
 
     # Handler for direct payment webhooks (payment.captured, payment.failed, etc.)
     PAYMENT_WEBHOOK_HANDLER='myapp.webhooks.handle_payment_webhook',
+
+    # Called after airpay syncs the local Subscriptions row for subscription.*
+    # events. Best-effort: host errors are logged and do not fail the webhook.
+    SUBSCRIPTION_WEBHOOK_HANDLER='myapp.webhooks.handle_subscription_webhook',
+
+    # Handler for refund.* and payment.disputed events.
+    REFUND_WEBHOOK_HANDLER='myapp.webhooks.handle_refund_webhook',
 )
 ```
 
@@ -335,7 +342,7 @@ def handle_payment_link_webhook(event, payment_link, payment):
 def on_payment_saved(sender, instance, **kwargs):
     if instance.status == 'PAID':
         # Send receipt, update inventory, etc.
-        send_receipt.delay(instance.pk)
+        send_receipt.delay(instance.id)
 ```
 
 ## Troubleshooting

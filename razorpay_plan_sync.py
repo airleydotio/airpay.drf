@@ -1,22 +1,14 @@
 """
-Razorpay Plan sync — bridges AirPlan (our internal catalogue row) to a real
-Razorpay Plan object, and derives the correct subscription `total_count` per
-plan (CN-94 §1/§4: multi-month plans are a fixed-cycle commitment at a
-discounted per-month rate, not an open-ended recurring charge).
+Razorpay Plan sync — bridges AirPlan (internal catalogue row) to a real
+Razorpay Plan object, and derives subscription `total_count` from plan
+metadata (fixed-cycle multi-month commitments vs open-ended monthly).
 
-Bug this closes: Subscriptions.create_link() previously passed AirPlan.plan_id
-(our internal natural key, e.g. "companion_monthly") straight to Razorpay's
-subscription.create as the plan_id — which only works if a Razorpay Plan
-object with that EXACT id happens to exist. Razorpay auto-generates its own
-plan ids ('plan_XXXXXXXXXXXX'); there was no code path anywhere that ever
-created one. This module is that missing path: lazily create + cache the
-real gateway plan id (AirPlan.gateway_plan_id) the first time a plan is used,
-idempotent on every call after.
+Subscriptions.create_link() must pass a real Razorpay plan id, not the
+internal AirPlan.plan_id natural key. This module lazily creates and caches
+AirPlan.gateway_plan_id on first use.
 
-Also fixes: total_count was hardcoded to 12 regardless of billing_cycle, so
-a 9-month prepay-at-discount plan would bill 12 cycles at the discounted
-rate instead of exactly 9. commitment_cycles() reads AirPlan.metadata's
-commitment_months (seeded by seed_tier_plans.py) for the correct count.
+commitment_cycles() reads AirPlan.metadata['commitment_months'] when set
+(host seeders may populate that); otherwise it uses an open-ended max.
 """
 from __future__ import annotations
 
@@ -35,10 +27,9 @@ _OPEN_ENDED_TOTAL_COUNT = 100
 def commitment_cycles(air_plan) -> int:
     """How many billing cycles this plan's subscription should run for.
 
-    Multi-month plans (5_month/9_month/3_month) have a fixed commitment —
-    reads AirPlan.metadata['commitment_months'] (seeded exactly for this).
-    'monthly' (no commitment) and any plan missing the metadata key fall back
-    to the open-ended max, matching pre-CN-94 behavior for month-to-month.
+    Multi-month plans with metadata['commitment_months'] use that fixed
+    cycle count. Plans without the key (typical month-to-month) fall back
+    to the open-ended max.
     """
     metadata = air_plan.metadata or {}
     commitment = metadata.get("commitment_months")
