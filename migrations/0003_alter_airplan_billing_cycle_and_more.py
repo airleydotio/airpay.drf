@@ -6,7 +6,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('airpay', '0002_alter_airplan_billing_cycle_and_more'),
+        # 0002_alter_airplan_billing_cycle_and_more was removed when migrations
+        # were squashed into 0001_initial (3a320fc). This migration is the
+        # CN-94 5_month billing_cycle addition and chains from initial.
+        ('airpay', '0001_initial'),
     ]
 
     operations = [
