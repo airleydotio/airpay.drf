@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AirPlan',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AirPlanFeatures',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AirSeller',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='PaymentGateway',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -96,7 +96,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Subscriptions',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RazorpayRouteOnboardingDetails',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -155,7 +155,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RazorpayOnboardingAddress',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
@@ -186,7 +186,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='AirPayTransferLogs',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.CharField(default=uuid.uuid4, editable=False, max_length=36, primary_key=True, serialize=False, unique=True)),
                 ('create_date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('update_date', models.DateTimeField(auto_now=True)),
                 ('is_deleted', models.BooleanField(default=False)),
