@@ -3,6 +3,7 @@ import json
 
 import requests
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -210,7 +211,14 @@ class CreateSubscriptions(ListAPIView):
             )
             plan_id = request.query_params.get("plan_id")
             gateway = request.query_params.get("gateway", "razorpay")
-            buyer = request.query_params.get("buyer", request.user.pk)
+            # The buyer is the authenticated caller. The `buyer` query
+            # parameter is honoured only for staff (back-office flows that
+            # legitimately raise a subscription on someone else's behalf);
+            # for everyone else it is ignored rather than rejected, because
+            # payment.html always sends it and may send a stale value.
+            buyer = request.user.pk
+            if request.user.is_staff:
+                buyer = request.query_params.get("buyer") or request.user.pk
 
             if not seller_id or not plan_id or not gateway or not buyer:
                 raise Exception("Invalid request")
@@ -269,10 +277,30 @@ class CancelSubscription(UpdateAPIView):
     serializer_class = SubscriptionsSerializer
     permission_classes = [IsAuthenticated]
 
-    def update(self, request, *args, **kwargs):
-        subscription = Subscriptions.objects.get(
-            id=request.query_params.get("subscription_id")
+    def get_queryset(self):
+        return Subscriptions.objects.filter(
+            buyer=self.request.user, is_deleted=False
         )
+
+    def update(self, request, *args, **kwargs):
+        # Read the id from the URL (`subscription/<subscriptionId>/cancel/`)
+        # and scope the lookup to the caller's own subscriptions: an id that
+        # exists but belongs to someone else is a 404, exactly like one that
+        # does not exist. A malformed UUID is a 404 too, not a 500.
+        try:
+            subscription = (
+                self.get_queryset().filter(id=kwargs.get("subscriptionId")).first()
+            )
+        except (DjangoValidationError, ValueError):
+            subscription = None
+        if subscription is None:
+            return SendResponse(
+                status_code=http.HTTPStatus.NOT_FOUND,
+                message="Subscription not found",
+                data=None,
+                error=True,
+                success=False,
+            ).send()
         try:
             subscription.cancel()
             return SendResponse(
