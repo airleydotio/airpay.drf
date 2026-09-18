@@ -380,11 +380,12 @@ class AirRazorpayBackend:
             raise e
 
     def verify_subscription_payment(self, data):
-        try:
-            self.client.utility.verify_payment_signature(data)
-        except Exception as e:
-            print('Error verifying subscription payment: ', e)
-            raise e
+        # Subscription signatures use payment_id|subscription_id, not the
+        # order-payment verifier's order_id|payment_id message.
+        payload = {key: data[key] for key in (
+            'razorpay_payment_id', 'razorpay_subscription_id', 'razorpay_signature',
+        )}
+        return self.client.utility.verify_subscription_payment_signature(payload)
 
     def fetch_subscription(self, subscription_id):
         try:

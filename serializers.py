@@ -42,3 +42,4 @@ class RazorpayRouteOnboardingDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = RazorpayRouteOnboardingDetails
         fields = '__all__'
+        read_only_fields = ('seller', 'gateway', 'razorpay_user_id', 'status')
