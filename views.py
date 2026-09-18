@@ -8,6 +8,9 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from django.urls import reverse
+from django.http import Http404
+from razorpay.errors import SignatureVerificationError
 from rest_framework import generics, serializers
 from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -45,10 +48,13 @@ class OpenPaymentGateway(generics.ListAPIView):
             request,
             "payment.html",
             {
-                "seller_id": request.query_params.get("seller_id"),
-                "plan_id": request.query_params.get("plan_id"),
-                "gateway": request.query_params.get("gateway"),
-                "buyer": request.query_params.get("buyer"),
+                "payment_config": {
+                    "seller_id": request.query_params.get("seller_id"),
+                    "plan_id": request.query_params.get("plan_id"),
+                    "gateway": request.query_params.get("gateway"),
+                    "buyer": request.query_params.get("buyer"),
+                    "subscribe_url": reverse("airpay:subscribe"),
+                },
             },
         )
 
@@ -65,7 +71,7 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
         "business_category",
         "sub_business_category",
     ]
-    not_allowed_fields = ["razorpay_user_id", "status"]
+    not_allowed_fields = ["seller", "gateway", "razorpay_user_id", "status"]
 
     def get_queryset(self):
         return self.serializer_class.Meta.model.objects.filter(
@@ -78,14 +84,15 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
                 seller__user_id=self.request.user.pk
             )
         except self.serializer_class.Meta.model.DoesNotExist:
-            return None
+            raise Http404("Onboarding details not found")
+
+    def perform_create(self, serializer):
+        seller, _ = AirSeller.objects.get_or_create(user_id=self.request.user.pk)
+        serializer.save(seller=seller, gateway=get_gateway("razorpay"))
 
     def post(self, request, *args, **kwargs):
         try:
             self.check_keys()
-            seller, _ = AirSeller.objects.get_or_create(user_id=request.user.pk)
-            request.data["seller"] = seller.pk
-            request.data["gateway"] = get_gateway("razorpay").pk
             return super().post(request, *args, **kwargs)
         except Exception as e:
             return SendResponse(
@@ -116,8 +123,10 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
     def patch(self, request, *args, **kwargs):
         try:
             object_ = self.get_object()
-            self.check_keys()
+            self.check_keys(only_not_allowed=True)
             patched = super().patch(request, *args, **kwargs)
+            if patched.status_code >= 400:
+                return patched
             if self.has_address_fields(request):
                 from .tasks import create_address
 
@@ -141,8 +150,10 @@ class AirRazorPayOnboarding(ListAPIView, CreateUpdateAPIView):
             if request.data.get("finalize") is True:
                 object_.complete_onboarding()
             return patched
+        except Http404:
+            raise
         except Exception as e:
-            print("Error patching onboarding details: ", e)
+            # No bank details or gateway exception payloads in logs.
             return SendResponse(
                 status_code=http.HTTPStatus.BAD_REQUEST,
                 message=str(e),
@@ -325,43 +336,36 @@ class VerifySubscriptionPayment(CreateAPIView):
     serializer_class = SubscriptionsSerializer
 
     def post(self, request, *args, **kwargs):
-        payment_id = request.data.get("razorpay_payment_id")
-        razorpay_subscription_id = request.data.get("razorpay_subscription_id")
-        razorpay_signature = request.data.get("razorpay_signature")
-        subscription = Subscriptions.objects.get(
-            subscription_id=razorpay_subscription_id
-        )
-        if not subscription:
-            return SendResponse(
-                status_code=http.HTTPStatus.NOT_FOUND,
-                message="Subscription not found",
-                data=None,
-                error=True,
-                success=False,
-            ).send()
-        gateway = get_gateway_backend(subscription.gateway.name)
+        keys = ("razorpay_payment_id", "razorpay_subscription_id", "razorpay_signature")
+        payload = {key: request.data.get(key) for key in keys}
+        missing = [key for key, value in payload.items() if not isinstance(value, str) or not value.strip()]
+        if missing:
+            return SendResponse(status_code=400, message="Missing fields: " + ", ".join(missing),
+                                data=None, error=True, success=False).send()
+        subscription = Subscriptions.objects.filter(
+            subscription_id=payload["razorpay_subscription_id"],
+            buyer=request.user, is_deleted=False,
+        ).select_related("gateway").first()
+        if subscription is None:
+            return SendResponse(status_code=404, message="Subscription not found",
+                                data=None, error=True, success=False).send()
+        if subscription.gateway.name != "razorpay":
+            return SendResponse(status_code=400, message="Payment gateway mismatch",
+                                data=None, error=True, success=False).send()
+        # Rebuild the dictionary explicitly. Razorpay's SDK accepts a `secret`
+        # override; no caller-controlled extra key may reach its verifier.
+        payload["razorpay_subscription_id"] = subscription.subscription_id
         try:
-            gateway.verify_subscription_payment(
-                payment_id, razorpay_subscription_id, razorpay_signature
-            )
-            if settings.ONBOARDING_URL:
-                return redirect(settings.ONBOARDING_URL)
-            else:
-                return SendResponse(
-                    status_code=http.HTTPStatus.ACCEPTED,
-                    message="Payment verified",
-                    data=None,
-                    error=False,
-                    success=True,
-                ).send()
-        except requests.exceptions.HTTPError as e:
-            return SendResponse(
-                status_code=http.HTTPStatus.BAD_REQUEST,
-                message="Error verifying payment",
-                data=None,
-                error=True,
-                success=False,
-            ).send()
+            gateway = get_gateway_backend(subscription.gateway.name)
+            if gateway.verify_subscription_payment(payload) is False:
+                raise ValueError("Signature not verified")
+        except (SignatureVerificationError, requests.exceptions.HTTPError, ValueError):
+            return SendResponse(status_code=400, message="Error verifying payment",
+                                data=None, error=True, success=False).send()
+        if getattr(settings, "ONBOARDING_URL", None):
+            return redirect(settings.ONBOARDING_URL)
+        return SendResponse(status_code=202, message="Payment verified",
+                            data=None, error=False, success=True).send()
 
 
 @csrf_exempt

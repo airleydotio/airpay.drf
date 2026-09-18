@@ -1,46 +1,29 @@
-<button onclick="handlePayment()">
-    Pay with Razorpay
-</button>
+<button type="button" onclick="handlePayment()">Pay with Razorpay</button>
+{{ payment_config|json_script:"payment-config" }}
 <script>
-    function handleWebsocket(subscription_id = 'sub_OT3S29Vim5KFTO') {
-
-        const isHTTP = window.location.protocol === 'http:';
-
-        let ws = new WebSocket(`${isHTTP ? 'ws://' : 'wss://'}${window.location.origin}/ws/airpay/${subscription_id}`);
-        ws.onopen = function () {
-            console.log('connected');
-            ws.send('Hello Server!');
-        }
+    const paymentConfig = JSON.parse(document.getElementById('payment-config').textContent);
+    function handleWebsocket(subscriptionId) {
+        const scheme = window.location.protocol === 'http:' ? 'ws:' : 'wss:';
+        const ws = new WebSocket(`${scheme}//${window.location.host}/ws/airpay/${encodeURIComponent(subscriptionId)}`);
         ws.onmessage = function (event) {
-            let data = JSON.parse(event.data);
-            if (data.status === 'active') {
-                alert('Payment Successful');
-                window.open("{{ return_url }}", "_self");
-            } else {
-                alert('Payment Failed');
-            }
-        }
-        ws.onclose = function () {
-            handleWebsocket();
-        }
+            const data = JSON.parse(event.data);
+            alert(data.status === 'active' ? 'Payment Successful' : 'Payment Failed');
+        };
     }
-
-    handleWebsocket()
     function handlePayment() {
-        // make an api request to server to create order
-        fetch(`${window.location.origin}/api/airpay/subscribe/?seller_id={{seller_id}}&plan_id={{plan_id}}&gateway={{gateway}}&buyer={{buyer}}`, {
+        const url = new URL(paymentConfig.subscribe_url, window.location.origin);
+        for (const key of ['seller_id', 'plan_id', 'gateway', 'buyer']) {
+            if (paymentConfig[key]) url.searchParams.set(key, paymentConfig[key]);
+        }
+        return fetch(url.toString(), {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        }).then(response => response.json()).then(
-            data => data['data']
-        ).then(
-            data => {
-                handleWebsocket(data.subscription_id);
-            }).catch(error => {
-            console.error('Error:', error);
-            alert('Error:', error);
-        });
+            headers: {'Content-Type': 'application/json'},
+        }).then(response => {
+            if (!response.ok) throw new Error('Payment request failed');
+            return response.json();
+        }).then(result => {
+            if (!result.data || !result.data.subscription_id) throw new Error('Subscription unavailable');
+            handleWebsocket(result.data.subscription_id);
+        }).catch(() => alert('Payment request failed. Please try again.'));
     }
 </script>
